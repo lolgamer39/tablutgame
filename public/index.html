@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tablut - The Viking Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container" id="view-home">
+        <img src="title.png" alt="Tablut Logo" class="logo">
+        
+        <div class="buttons-grid">
+            <button class="btn btn-primary" onclick="showView('view-mode')">Gioca Ora</button>
+            <button class="btn btn-secondary" onclick="alert('Regole non ancora disponibili!')">Come si gioca</button>
+            
+            <div class="row" style="justify-content: center; margin-top: 5px;">
+                <button class="btn btn-icon" onclick="toggleSettings()">⚙️</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container hidden" id="view-mode">
+        <h2>Scegli Modalità</h2>
+        <p>Sfida un amico sullo stesso schermo o online.</p>
+        
+        <div class="buttons-grid">
+            <button class="btn btn-secondary" onclick="window.location.href='game/game.html?mode=local'">
+                🏠 Partita Locale
+            </button>
+            
+            <button class="btn btn-primary" onclick="showView('view-online-setup')">
+                🌍 Partita Online
+            </button>
+            
+            <button class="btn btn-outline" onclick="showView('view-home')">Indietro</button>
+        </div>
+    </div>
+
+    <div class="container hidden" id="view-online-setup">
+        <h2>Configura Partita</h2>
+        
+        <div class="input-group">
+            <label class="input-label">Il tuo Nome</label>
+            <input type="text" id="username" placeholder="Es. Ragnar Lothbrok" maxlength="12">
+        </div>
+
+        <div class="input-group">
+            <label class="input-label">Tempo di Gioco</label>
+            <select id="time-control">
+                <option value="10">10 Minuti (Rapida)</option>
+                <option value="30">30 Minuti (Classica)</option>
+                <option value="no-time">Senza Tempo</option>
+            </select>
+        </div>
+
+        <div class="buttons-grid" style="margin-top: 10px;">
+            <button class="btn btn-primary" onclick="startOnlineGame()">Cerca Avversario</button>
+            <button class="btn btn-outline" onclick="showView('view-mode')">Annulla</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="settings-overlay hidden">
+        <div class="settings-box">
+            <h2>Impostazioni</h2>
+            <br>
+            <div class="input-group">
+                <label class="input-label">Musica</label>
+                <select>
+                    <option>Attiva</option>
+                    <option>Disattivata</option>
+                </select>
+            </div>
+            <br>
+            <button class="btn btn-outline" onclick="toggleSettings()">Chiudi</button>
+        </div>
+    </div>
+
+    <script>
+        // Gestione Navigazione tra le "Viste"
+        function showView(viewId) {
+            // Nascondi tutto
+            document.querySelectorAll('.container').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('fade-in');
+            });
+            
+            // Mostra quella richiesta con animazione
+            const target = document.getElementById(viewId);
+            target.classList.remove('hidden');
+            void target.offsetWidth; // Trigger reflow per riavviare animazione
+            target.classList.add('fade-in');
+        }
+
+        // Gestione Settings
+        function toggleSettings() {
+            document.getElementById('settings-modal').classList.toggle('hidden');
+        }
+
+        // Avvio Partita Online
+        function startOnlineGame() {
+            const name = document.getElementById('username').value.trim();
+            const time = document.getElementById('time-control').value;
+            
+            if (!name) {
+                alert("Per favore, inserisci un nome per giocare online!");
+                return;
+            }
+            
+            // Reindirizza alla pagina di gioco con i parametri corretti
+            window.location.href = `game/game.html?mode=online&name=${encodeURIComponent(name)}&time=${time}`;
+        }
+    </script>
+
+</body>
+</html>
