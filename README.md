@@ -1,2 +1,2 @@
-# tablutgame
-Tablut
+# tablut
+Game of tablut

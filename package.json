@@ -1,0 +1,13 @@
+{
+  "name": "tablut-online",
+  "version": "1.0.0",
+  "description": "Gioco Tablut Online",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1",
+    "socket.io": "^4.8.3"
+  }
+}
