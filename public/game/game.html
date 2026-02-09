@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partita - Tablut</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="game.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div class="bg-overlay"></div>
+
+    <div id="status-badge" class="status-badge-floating">
+        Tocca ai <strong id="current-player">Neri</strong>
+    </div>
+
+    <div id="connection-warning" class="hidden toast toast-warning">⚠️ Connessione instabile...</div>
+    <div id="opponent-warning" class="hidden toast toast-info">⏳ L'avversario ha perso la connessione...</div>
+
+    <div class="app-container">
+        
+        <div class="game-section">
+            
+            <div class="board-wrapper-tight">
+                
+                <div id="online-ui" class="hidden compact-bar">
+                    <div class="player-info-group">
+                        <div id="opp-color" class="color-dot"></div> 
+                        <div class="name-box"><span id="opp-name" class="player-name">Avversario</span></div>
+                    </div>
+                    <div class="stats-group">
+                        <span class="timer-badge" id="opp-timer">--:--</span>
+                        <div class="signal-bars signal-4" id="opp-signal"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                    </div>
+                </div>
+
+                <div id="board"></div>
+
+                <div id="online-ui-bottom" class="hidden compact-bar">
+                    <div class="player-info-group">
+                        <div id="my-color" class="color-dot"></div> 
+                        <div class="name-box"><span id="my-name" class="player-name">Tu</span></div>
+                    </div>
+                    <div class="stats-group">
+                        <span class="timer-badge" id="my-timer">--:--</span>
+                        <div class="signal-bars signal-4" id="my-signal"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+                    </div>
+                </div>
+
+                <div id="mobile-actions" class="mobile-only-actions">
+                    <button id="undo-btn-mobile" class="btn btn-secondary btn-sm" onclick="requestUndo()">Annulla</button>
+                    <button id="settings-btn-mobile" class="btn btn-outline btn-icon btn-sm" onclick="toggleSettingsModal()">⚙️</button>
+                    <button id="surrender-btn-mobile" class="btn btn-danger btn-sm" onclick="handleSurrender()">Abbandona</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-header">
+                <h3>Storico Mosse</h3>
+                <button class="btn btn-outline btn-icon btn-sm desktop-only" onclick="toggleSettingsModal()">⚙️</button>
+            </div>
+            
+            <div class="history-scroll-area" id="move-history-container">
+                <table class="move-table" id="move-table">
+                    <thead><tr><th>#</th><th>Neri</th><th>Bianchi</th></tr></thead>
+                    <tbody id="move-list-body"></tbody>
+                </table>
+            </div>
+
+            <div class="history-controls">
+                <button id="btn-prev" class="btn btn-outline btn-icon">◀</button>
+                <button id="btn-next" class="btn btn-outline btn-icon">▶</button>
+            </div>
+
+            <div class="desktop-actions">
+                <button id="undo-btn" class="btn btn-secondary" onclick="requestUndo()">Annulla Mossa</button>
+                <button id="surrender-btn" class="btn btn-danger" onclick="handleSurrender()">Abbandona Partita</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="game-over-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 id="winner-title">Vittoria!</h2>
+            <p id="winner-msg" class="modal-desc"></p>
+            <button class="btn btn-primary" onclick="window.location.href='../index.html'">Torna al Menu</button>
+        </div>
+    </div>
+
+    <div id="game-cancelled-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 style="color: #ef4444;">Partita Annullata</h2>
+            <p class="modal-desc">La partita è stata interrotta.</p>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="window.location.href='../index.html'">Home</button>
+                <button class="btn btn-primary" id="play-again-same-settings">Cerca Nuovo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="undo-request-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Richiesta Ritiro</h3>
+            <p>L'avversario vuole annullare l'ultima mossa.</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="respondUndo(true)">Accetta</button>
+                <button class="btn btn-danger" onclick="respondUndo(false)">Rifiuta</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Impostazioni</h3>
+            <div class="setting-item">
+                <span>Mostra suggerimenti mosse</span>
+                <label class="switch">
+                    <input type="checkbox" id="hints-toggle" checked onchange="toggleHints()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <br>
+            <button class="btn btn-outline" onclick="toggleSettingsModal()">Chiudi</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
