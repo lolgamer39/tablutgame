@@ -343,7 +343,10 @@ function initOnline(name, time) {
         timers.white = parseInt(time)*60;
         timers.black = parseInt(time)*60;
     }
-    socket = io({ reconnection: true });
+    socket = io('https://tablutgame.onrender.com', { 
+        transports: ['websocket', 'polling'],
+        reconnection: true 
+    });
     socket.emit('find_game', { username: name, timeControl: time });
     
     socket.on('game_start', (data) => {
