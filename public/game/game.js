@@ -29,19 +29,34 @@ let storedParams = {};
 let currentHistoryIndex = 0;
 let showHints = true;
 
-// CONFIGURAZIONE AUDIO (SOLO SFX)
+// CONFIGURAZIONE AUDIO
 let audioSettings = {
     sfxOn: true,
     sfxVol: 0.6
 };
 
-// --- TEMI PREDEFINITI ---
+// --- DEFINIZIONE TEMI (Con colore mosse adattivo) ---
 const themes = {
-    classic: { board: '#5a3a22', throne: '#ffd700', escape: '#86efac' },
-    ice:     { board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe' },
-    magma:   { board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5' },
-    forest:  { board: '#14532d', throne: '#84cc16', escape: '#4ade80' },
-    cyber:   { board: '#2e1065', throne: '#d946ef', escape: '#22d3ee' }
+    classic: { 
+        board: '#5a3a22', throne: '#ffd700', escape: '#86efac', 
+        hint: 'rgba(20, 100, 20, 0.6)' // Verde scuro semitrasparente
+    },
+    ice: { 
+        board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe', 
+        hint: 'rgba(200, 255, 255, 0.7)' // Bianco ghiaccio
+    },
+    magma: { 
+        board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5', 
+        hint: 'rgba(255, 215, 0, 0.7)' // Oro brillante
+    },
+    forest: { 
+        board: '#14532d', throne: '#84cc16', escape: '#4ade80', 
+        hint: 'rgba(144, 238, 144, 0.7)' // Verde chiaro
+    },
+    cyber: { 
+        board: '#2e1065', throne: '#d946ef', escape: '#22d3ee', 
+        hint: 'rgba(0, 255, 255, 0.7)' // Ciano Neon
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
     mode = params.get('mode') || 'local';
     storedParams = { name: params.get('name'), time: params.get('time') };
 
-    // CARICA IMPOSTAZIONI (AUDIO E TEMA)
     loadSettings();
 
     if (mode === 'online') {
@@ -58,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
-    // Controlli
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
     if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
@@ -80,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- FUNZIONI SETTINGS ---
 
 function loadSettings() {
-    // 1. Audio SFX
     const savedSfx = localStorage.getItem('tablut_sfx_on');
     const savedSfxVol = localStorage.getItem('tablut_sfx_vol');
 
@@ -92,7 +104,6 @@ function loadSettings() {
     if(st) st.checked = audioSettings.sfxOn;
     if(sv) sv.value = audioSettings.sfxVol;
 
-    // 2. Tema
     const savedTheme = localStorage.getItem('tablut_theme') || 'classic';
     const sel = document.getElementById('theme-selector');
     if(sel) sel.value = savedTheme;
@@ -108,9 +119,12 @@ function updateAudioSettings() {
 
 function applyTheme(themeName) {
     const t = themes[themeName] || themes['classic'];
+    // Imposta tutte le variabili CSS inclusa quella per l'hint
     document.documentElement.style.setProperty('--board-bg', t.board);
     document.documentElement.style.setProperty('--throne-bg', t.throne);
     document.documentElement.style.setProperty('--escape-bg', t.escape);
+    document.documentElement.style.setProperty('--hint-color', t.hint);
+    
     localStorage.setItem('tablut_theme', themeName);
 }
 
