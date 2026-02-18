@@ -23,19 +23,25 @@ let myColor = null;
 let gameId = null;
 let timers = { white: 0, black: 0 };
 let timerInterval = null;
-let badConnCount = 0;
 let movesCount = 0; 
 let undosLeft = 3;  
 let storedParams = {}; 
 let currentHistoryIndex = 0;
 let showHints = true;
 
-// CONFIGURAZIONE AUDIO
+// CONFIGURAZIONE AUDIO (SOLO SFX)
 let audioSettings = {
-    musicOn: true,
-    musicVol: 0.5,
     sfxOn: true,
     sfxVol: 0.6
+};
+
+// --- TEMI PREDEFINITI ---
+const themes = {
+    classic: { board: '#5a3a22', throne: '#ffd700', escape: '#86efac' },
+    ice:     { board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe' },
+    magma:   { board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5' },
+    forest:  { board: '#14532d', throne: '#84cc16', escape: '#4ade80' },
+    cyber:   { board: '#2e1065', throne: '#d946ef', escape: '#22d3ee' }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -43,17 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     mode = params.get('mode') || 'local';
     storedParams = { name: params.get('name'), time: params.get('time') };
 
-    // CARICA AUDIO
-    loadAudioSettings();
-
-    // Tenta di avviare la musica al primo click se bloccata
-    const music = document.getElementById('theme-music');
-    document.body.addEventListener('click', () => {
-        if(audioSettings.musicOn && music.paused) {
-            music.volume = audioSettings.musicVol;
-            music.play().catch(()=>{});
-        }
-    }, { once: true });
+    // CARICA IMPOSTAZIONI (AUDIO E TEMA)
+    loadSettings();
 
     if (mode === 'online') {
         initOnline(storedParams.name, storedParams.time);
@@ -61,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
-    // Controlli Tastiera e Bottoni Storia
+    // Controlli
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
     if(btnPrev) btnPrev.addEventListener('click', () => navigateHistory(-1));
@@ -80,77 +77,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- FUNZIONI AUDIO ---
-function loadAudioSettings() {
-    const savedMusic = localStorage.getItem('tablut_music_on');
-    const savedMusicVol = localStorage.getItem('tablut_music_vol');
+// --- FUNZIONI SETTINGS ---
+
+function loadSettings() {
+    // 1. Audio SFX
     const savedSfx = localStorage.getItem('tablut_sfx_on');
     const savedSfxVol = localStorage.getItem('tablut_sfx_vol');
 
-    if(savedMusic !== null) audioSettings.musicOn = (savedMusic === 'true');
-    if(savedMusicVol !== null) audioSettings.musicVol = parseFloat(savedMusicVol);
     if(savedSfx !== null) audioSettings.sfxOn = (savedSfx === 'true');
     if(savedSfxVol !== null) audioSettings.sfxVol = parseFloat(savedSfxVol);
 
-    // Aggiorna UI Settings Modal
-    const mt = document.getElementById('music-toggle');
-    const mv = document.getElementById('music-vol');
     const st = document.getElementById('sfx-toggle');
     const sv = document.getElementById('sfx-vol');
-
-    if(mt) mt.checked = audioSettings.musicOn;
-    if(mv) mv.value = audioSettings.musicVol;
     if(st) st.checked = audioSettings.sfxOn;
     if(sv) sv.value = audioSettings.sfxVol;
 
-    // Applica musica
-    const music = document.getElementById('theme-music');
-    if(music) {
-        music.volume = audioSettings.musicVol;
-        if(audioSettings.musicOn) music.play().catch(()=>{});
-        else music.pause();
-    }
+    // 2. Tema
+    const savedTheme = localStorage.getItem('tablut_theme') || 'classic';
+    const sel = document.getElementById('theme-selector');
+    if(sel) sel.value = savedTheme;
+    applyTheme(savedTheme);
 }
 
 function updateAudioSettings() {
-    audioSettings.musicOn = document.getElementById('music-toggle').checked;
-    audioSettings.musicVol = document.getElementById('music-vol').value;
     audioSettings.sfxOn = document.getElementById('sfx-toggle').checked;
     audioSettings.sfxVol = document.getElementById('sfx-vol').value;
-
-    const music = document.getElementById('theme-music');
-    music.volume = audioSettings.musicVol;
-    if(audioSettings.musicOn) {
-        if(music.paused) music.play().catch(()=>{});
-    } else {
-        music.pause();
-    }
-
-    localStorage.setItem('tablut_music_on', audioSettings.musicOn);
-    localStorage.setItem('tablut_music_vol', audioSettings.musicVol);
     localStorage.setItem('tablut_sfx_on', audioSettings.sfxOn);
     localStorage.setItem('tablut_sfx_vol', audioSettings.sfxVol);
+}
+
+function applyTheme(themeName) {
+    const t = themes[themeName] || themes['classic'];
+    document.documentElement.style.setProperty('--board-bg', t.board);
+    document.documentElement.style.setProperty('--throne-bg', t.throne);
+    document.documentElement.style.setProperty('--escape-bg', t.escape);
+    localStorage.setItem('tablut_theme', themeName);
 }
 
 function playMoveSound() {
     if (audioSettings.sfxOn) {
         const sound = document.getElementById('move-sound');
-        sound.currentTime = 0;
-        sound.volume = audioSettings.sfxVol;
-        sound.play().catch(()=>{});
+        if(sound) {
+            sound.currentTime = 0;
+            sound.volume = audioSettings.sfxVol;
+            sound.play().catch(()=>{});
+        }
     }
 }
 
 function playWinSound() {
     if (audioSettings.sfxOn) {
         const sound = document.getElementById('win-sound');
-        sound.currentTime = 0;
-        sound.volume = 1.0; // Volume fisso al massimo per la vittoria
-        sound.play().catch(()=>{});
+        if(sound) {
+            sound.currentTime = 0;
+            sound.volume = 1.0; 
+            sound.play().catch(()=>{});
+        }
     }
 }
 
-// --- FUNZIONI DI GIOCO ---
+// --- LOGICA GIOCO ---
 
 function toggleSettingsModal() {
     document.getElementById('settings-modal').classList.toggle('hidden');
@@ -159,10 +145,6 @@ function toggleSettingsModal() {
 function toggleHints() {
     showHints = document.getElementById('hints-toggle').checked;
     drawBoard(); 
-}
-
-function updateTheme(variable, value) {
-    document.documentElement.style.setProperty(variable, value);
 }
 
 function startGame() {
@@ -249,9 +231,7 @@ function makeMove(r1, c1, r2, c2) {
     board[r2][c2] = piece;
     board[r1][c1] = 0;
     
-    // --- SUONO MOSSA ---
     playMoveSound();
-    // -------------------
 
     selected = null;
     movesCount++; 
@@ -378,9 +358,7 @@ function checkWin() {
 
 function endGame(msg) {
     gameOver = true;
-    // --- SUONO VITTORIA ---
     playWinSound();
-    // ----------------------
     document.getElementById('winner-msg').innerText = msg;
     document.getElementById('game-over-modal').classList.remove('hidden');
     if(timerInterval) clearInterval(timerInterval);
@@ -444,7 +422,6 @@ function initOnline(name, time) {
         timers.black = parseInt(time)*60;
     }
     
-    // CONNESSIONE AL SERVER RENDER
     socket = io('https://tablutgame.onrender.com', { 
         transports: ['websocket', 'polling'],
         reconnection: true 
