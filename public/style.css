@@ -225,3 +225,46 @@ p { color: #a1a1aa; font-size: 0.95rem; margin-top: -15px; margin-bottom: 10px; 
 }
 
 .tutorial-step strong { color: white; }
+/* --- AUDIO SETTINGS --- */
+.settings-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+    color: #e2e8f0;
+}
+
+/* Stile Slider Volume */
+input[type=range] {
+    -webkit-appearance: none; 
+    width: 100%; 
+    background: transparent; 
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #10b981;
+    cursor: pointer;
+    margin-top: -6px; 
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+}
