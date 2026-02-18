@@ -183,3 +183,45 @@ p { color: #a1a1aa; font-size: 0.95rem; margin-top: -15px; margin-bottom: 10px; 
     width: 90%; max-width: 350px;
     border: 1px solid rgba(255,255,255,0.1);
 }
+
+/* --- TUTORIAL SECTION (NUOVO) --- */
+.tutorial-scroll-area {
+    max-height: 55vh; /* Occupa massimo il 55% dell'altezza schermo */
+    overflow-y: auto; 
+    text-align: left; 
+    padding-right: 10px; 
+    margin-bottom: 20px;
+}
+
+/* Personalizzazione Scrollbar Tutorial */
+.tutorial-scroll-area::-webkit-scrollbar { width: 6px; }
+.tutorial-scroll-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+.tutorial-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+
+.tutorial-step {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.tutorial-step h3 {
+    margin-top: 0;
+    color: #facc15; /* Giallo oro */
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.tutorial-step p {
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+.tutorial-step strong { color: white; }
