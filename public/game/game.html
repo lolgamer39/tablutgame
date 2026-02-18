@@ -12,6 +12,16 @@
 
     <div class="bg-overlay"></div>
 
+    <audio id="theme-music" loop>
+        <source src="../theme.mp3" type="audio/mp3">
+    </audio>
+    <audio id="move-sound">
+        <source src="../move.mp3" type="audio/mp3">
+    </audio>
+    <audio id="win-sound">
+        <source src="../win.mp3" type="audio/mp3">
+    </audio>
+
     <div id="status-badge" class="status-badge-floating">
         Tocca ai <strong id="current-player">Neri</strong>
     </div>
@@ -22,13 +32,11 @@
     <div class="app-container">
         
         <div class="game-section">
-            
             <div class="board-wrapper-tight">
-                
                 <div id="online-ui" class="hidden compact-bar">
                     <div class="player-info-group">
                         <div id="opp-color" class="color-dot"></div> 
-                        <div class="name-box"><span id="opp-name" class="player-name">Avversario</span></div>
+                        <div class="player-name" id="opp-name">Avversario</div>
                     </div>
                     <div class="stats-group">
                         <span class="timer-badge" id="opp-timer">--:--</span>
@@ -41,7 +49,7 @@
                 <div id="online-ui-bottom" class="hidden compact-bar">
                     <div class="player-info-group">
                         <div id="my-color" class="color-dot"></div> 
-                        <div class="name-box"><span id="my-name" class="player-name">Tu</span></div>
+                        <div class="player-name" id="my-name">Tu</div>
                     </div>
                     <div class="stats-group">
                         <span class="timer-badge" id="my-timer">--:--</span>
@@ -55,7 +63,6 @@
                     <button id="surrender-btn-mobile" class="btn btn-danger btn-sm" onclick="handleSurrender()">Abbandona</button>
                 </div>
             </div>
-
         </div>
 
         <div class="sidebar-section">
@@ -117,13 +124,44 @@
     <div id="settings-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>Impostazioni</h3>
+            
             <div class="setting-item">
-                <span>Mostra suggerimenti mosse</span>
+                <span>Mostra suggerimenti</span>
                 <label class="switch">
                     <input type="checkbox" id="hints-toggle" checked onchange="toggleHints()">
                     <span class="slider round"></span>
                 </label>
             </div>
+
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
+            
+            <div class="setting-item">
+                <span>🎵 Musica</span>
+                <div style="display:flex; flex-direction:column; align-items:end; gap:5px; width: 50%;">
+                    <label class="switch">
+                        <input type="checkbox" id="music-toggle" checked onchange="updateAudioSettings()">
+                        <span class="slider round"></span>
+                    </label>
+                    <input type="range" id="music-vol" min="0" max="1" step="0.1" style="width:100%" oninput="updateAudioSettings()">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <span>🔊 Effetti</span>
+                <div style="display:flex; flex-direction:column; align-items:end; gap:5px; width: 50%;">
+                    <label class="switch">
+                        <input type="checkbox" id="sfx-toggle" checked onchange="updateAudioSettings()">
+                        <span class="slider round"></span>
+                    </label>
+                    <input type="range" id="sfx-vol" min="0" max="1" step="0.1" style="width:100%" oninput="updateAudioSettings()">
+                </div>
+            </div>
+            <div class="setting-group-title">Personalizza Colori</div>
+            <div class="setting-item">
+                <span>Scacchiera</span>
+                <input type="color" value="#5a3a22" oninput="updateTheme('--board-bg', this.value)">
+            </div>
+            
             <br>
             <button class="btn btn-outline" onclick="toggleSettingsModal()">Chiudi</button>
         </div>
