@@ -12,9 +12,6 @@
 
     <div class="bg-overlay"></div>
 
-    <audio id="theme-music" loop>
-        <source src="../theme.mp3" type="audio/mp3">
-    </audio>
     <audio id="move-sound">
         <source src="../move.mp3" type="audio/mp3">
     </audio>
@@ -136,17 +133,6 @@
             <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
             
             <div class="setting-item">
-                <span>🎵 Musica</span>
-                <div style="display:flex; flex-direction:column; align-items:end; gap:5px; width: 50%;">
-                    <label class="switch">
-                        <input type="checkbox" id="music-toggle" checked onchange="updateAudioSettings()">
-                        <span class="slider round"></span>
-                    </label>
-                    <input type="range" id="music-vol" min="0" max="1" step="0.1" style="width:100%" oninput="updateAudioSettings()">
-                </div>
-            </div>
-
-            <div class="setting-item">
                 <span>🔊 Effetti</span>
                 <div style="display:flex; flex-direction:column; align-items:end; gap:5px; width: 50%;">
                     <label class="switch">
@@ -156,13 +142,18 @@
                     <input type="range" id="sfx-vol" min="0" max="1" step="0.1" style="width:100%" oninput="updateAudioSettings()">
                 </div>
             </div>
-            <div class="setting-group-title">Personalizza Colori</div>
-            <div class="setting-item">
-                <span>Scacchiera</span>
-                <input type="color" value="#5a3a22" oninput="updateTheme('--board-bg', this.value)">
-            </div>
+
+            <div class="setting-group-title" style="margin-top: 20px; margin-bottom: 8px;">Tema Scacchiera</div>
             
-            <br>
+            <select id="theme-selector" onchange="applyTheme(this.value)">
+                <option value="classic">🛡️ Classico (Legno e Oro)</option>
+                <option value="ice">❄️ Regno di Ghiaccio</option>
+                <option value="magma">🔥 Magma Vulcano</option>
+                <option value="forest">🌲 Foresta Notturna</option>
+                <option value="cyber">🤖 Cyberpunk Neon</option>
+            </select>
+            
+            <br><br>
             <button class="btn btn-outline" onclick="toggleSettingsModal()">Chiudi</button>
         </div>
     </div>
