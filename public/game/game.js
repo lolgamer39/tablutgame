@@ -43,19 +43,19 @@ const themes = {
     },
     ice: { 
         board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe', 
-        hint: 'rgba(200, 255, 255, 0.7)' // Bianco ghiaccio
+        hint: 'rgba(0, 40, 100, 0.8)' // Blu abisso scuro
     },
     magma: { 
         board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5', 
-        hint: 'rgba(255, 215, 0, 0.7)' // Oro brillante
+        hint: 'rgba(100, 20, 0, 0.8)' // Rosso scuro / Granata
     },
     forest: { 
         board: '#14532d', throne: '#84cc16', escape: '#4ade80', 
-        hint: 'rgba(144, 238, 144, 0.7)' // Verde chiaro
+        hint: 'rgba(10, 50, 10, 0.9)' // Verde foresta quasi nero
     },
     cyber: { 
         board: '#2e1065', throne: '#d946ef', escape: '#22d3ee', 
-        hint: 'rgba(0, 255, 255, 0.7)' // Ciano Neon
+        hint: 'rgba(80, 0, 120, 0.9)' // Viola scuro profondo
     }
 };
 
