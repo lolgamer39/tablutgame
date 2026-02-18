@@ -8,10 +8,11 @@
     --danger: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
     --cell-bg: #f0e2d0;
     
-    /* --- VARIABILI DINAMICHE PER I TEMI --- */
-    --board-bg: #5a3a22;       /* Default: Classico */
-    --throne-bg: #ffd700;
-    --escape-bg: #86efac;
+    /* --- VARIABILI DINAMICHE TEMI --- */
+    --board-bg: #5a3a22;       /* Scacchiera */
+    --throne-bg: #ffd700;      /* Trono */
+    --escape-bg: #86efac;      /* Angoli */
+    --hint-color: rgba(0, 100, 0, 0.5); /* Colore suggerimenti mosse */
 }
 
 * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -44,7 +45,7 @@ body { margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden; ba
     border: 6px solid var(--board-bg); 
     background-color: var(--board-bg); 
     gap: 2px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position: relative;
-    transition: background-color 0.4s ease, border-color 0.4s ease; /* Transizione fluida per i temi */
+    transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 .cell { width: 100%; height: 100%; background-color: var(--cell-bg); display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; }
@@ -53,6 +54,18 @@ body { margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden; ba
 
 .cell:hover { filter: brightness(0.95); }
 .selected { background-color: rgba(250, 204, 21, 0.6) !important; }
+
+/* NUOVO STILE HINT (Pallino mossa) */
+.hint { 
+    width: 35%; height: 35%; 
+    background: var(--hint-color); /* Colore dinamico */
+    border-radius: 50%; 
+    pointer-events: none; 
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+    box-shadow: 0 0 4px rgba(0,0,0,0.2);
+    transition: background-color 0.4s ease;
+}
+
 .status-badge-floating { position: fixed; top: 15px; left: 15px; z-index: 50; background: rgba(0,0,0,0.8); color: #e2e8f0; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; border: 1px solid var(--glass-border); backdrop-filter: blur(5px); }
 #current-player { color: #facc15; }
 .coord { position: absolute; font-size: 11px; font-weight: bold; color: rgba(90, 58, 34, 0.6); pointer-events: none; }
@@ -61,9 +74,7 @@ body { margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden; ba
 .black-piece { background: radial-gradient(at 30% 30%, #475569, #0f172a); border: 1px solid #0f172a; }
 .white-piece { background: radial-gradient(at 30% 30%, #ffffff, #cbd5e1); border: 1px solid #94a3b8; }
 .king { background: #fff url('../king.png') no-repeat center center; background-size: 70%; border: 3px solid #eab308; box-shadow: 0 0 10px #eab308; }
-.hint { width: 30%; height: 30%; background: rgba(0, 160, 0, 0.4); border-radius: 50%; pointer-events: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 
-/* ELEMENTI UI E SETTINGS */
 .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .sidebar-header h3 { margin: 0; font-size: 1rem; color: #e2e8f0; }
 .history-scroll-area { flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 10px; }
@@ -77,6 +88,7 @@ body { margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden; ba
 .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); }
 .btn-sm { font-size: 0.9rem; padding: 10px 14px; }
 .btn-icon { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; font-size: 1.2rem; }
+
 .mobile-only-actions { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
 .mobile-only-actions button { flex: 1; }
 .desktop-actions { display: none; } .desktop-only { display: none; }
@@ -87,15 +99,12 @@ body { margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden; ba
 .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 30px; z-index: 2000; font-weight: 600; font-size: 0.9rem; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
 .toast-warning { background: #f59e0b; color: #fff; } .toast-info { background: #3b82f6; color: #fff; }
 
-/* CONTROLLI FORM (Select, Range, Switch) */
 .setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #cbd5e1; font-size: 0.95rem; }
 .setting-group-title { text-align: left; color: #94a3b8; font-size: 0.85rem; margin-top: 5px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
 
-/* Select Style */
 select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; outline: none; cursor: pointer; }
 select option { background: #1e293b; color: white; }
 
-/* Switch */
 .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
@@ -103,10 +112,55 @@ select option { background: #1e293b; color: white; }
 input:checked + .slider { background: var(--primary); }
 input:checked + .slider:before { transform: translateX(20px); }
 
-/* Range Slider */
-input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #10b981; cursor: pointer; margin-top: -6px; }
-input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+/* --- SLIDER AUDIO AVANZATI (Nuovo Design) --- */
+input[type=range] {
+    -webkit-appearance: none; /* Reset stile browser */
+    width: 100%;
+    background: transparent;
+    cursor: pointer;
+    height: 24px; /* Altezza area click */
+    margin: 5px 0;
+}
+
+/* Barra Scorrimento (Track) */
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Maniglia (Thumb) */
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    margin-top: -7px; /* Centra verticalmente rispetto alla track (6px - 18px)/2 -1 (border) */
+    box-shadow: 0 0 10px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.1);
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); /* Alone verde al passaggio */
+}
+
+input[type=range]:active::-webkit-slider-thumb {
+    transform: scale(0.95);
+    background: #10b981; /* Diventa verde quando cliccato */
+}
+
+/* Supporto Firefox */
+input[type=range]::-moz-range-track {
+    width: 100%; height: 6px; background: rgba(255, 255, 255, 0.15); border-radius: 10px;
+}
+input[type=range]::-moz-range-thumb {
+    height: 18px; width: 18px; border: none; border-radius: 50%; background: #ffffff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
 
 @media (min-width: 1024px) {
     .app-container { flex-direction: row; } .game-section { width: 70%; padding: 20px; }
