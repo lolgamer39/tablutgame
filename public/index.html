@@ -14,7 +14,7 @@
         
         <div class="buttons-grid">
             <button class="btn btn-primary" onclick="showView('view-mode')">Gioca Ora</button>
-            <button class="btn btn-secondary" onclick="alert('Regole non ancora disponibili!')">Come si gioca</button>
+            <button class="btn btn-secondary" onclick="showView('view-tutorial')">Come si gioca</button>
             
             <div class="row" style="justify-content: center; margin-top: 5px;">
                 <button class="btn btn-icon" onclick="toggleSettings()">⚙️</button>
@@ -62,6 +62,45 @@
         </div>
     </div>
 
+    <div class="container hidden" id="view-tutorial" style="max-width: 500px;">
+        <h2>Guida Tattica</h2>
+        <div class="tutorial-scroll-area">
+            
+            <div class="tutorial-step">
+                <h3>⚔️ Le Due Fazioni</h3>
+                <p>Il Tablut è asimmetrico. <br>
+                I <strong>Bianchi (Svedesi)</strong> hanno il Re al centro e poche guardie. <br>
+                I <strong>Neri (Moscoviti)</strong> sono molti di più e circondano la scacchiera.</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>🎯 L'Obiettivo</h3>
+                <p><strong>Bianchi:</strong> Devono portare il Re in uno dei 4 <strong>angoli</strong> della scacchiera (rifugi) per scappare e vincere.</p>
+                <p><strong>Neri:</strong> Devono <strong>catturare il Re</strong> circondandolo su 4 lati prima che scappi.</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>♟️ Movimento</h3>
+                <p>Tutti i pezzi (Re compreso) si muovono come la <strong>Torre degli scacchi</strong>: quante caselle vogliono in orizzontale o verticale, ma non possono saltare altri pezzi.</p>
+                <p><em>Nota:</em> Solo il Re può fermarsi sul trono centrale (dove inizia).</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>💀 La Cattura</h3>
+                <p>Non si mangia saltando sopra! Un pezzo nemico viene catturato se lo <strong>chiudi a sandwich</strong> tra due dei tuoi pezzi (custodia).</p>
+                <p><em>Esempio:</em> ⚪ ⚫ ⚪ -> Il nero viene eliminato.</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>👑 Il Re</h3>
+                <p>Il Re è forte! Se è fuori dal trono, partecipa alle catture come un soldato normale.</p>
+                <p>Per catturare il Re servono <strong>4 attaccanti</strong> se è sul trono, ma ne bastano <strong>2</strong> se si è allontanato dal centro!</p>
+            </div>
+
+        </div>
+        <button class="btn btn-outline" onclick="showView('view-home')">Torna al Menu</button>
+    </div>
+
     <div id="settings-modal" class="settings-overlay hidden">
         <div class="settings-box">
             <h2>Impostazioni</h2>
@@ -81,7 +120,7 @@
     <script>
         // Gestione Navigazione tra le "Viste"
         function showView(viewId) {
-            // Nascondi tutto
+            // Nascondi tutte le schermate
             document.querySelectorAll('.container').forEach(el => {
                 el.classList.add('hidden');
                 el.classList.remove('fade-in');
@@ -89,9 +128,11 @@
             
             // Mostra quella richiesta con animazione
             const target = document.getElementById(viewId);
-            target.classList.remove('hidden');
-            void target.offsetWidth; // Trigger reflow per riavviare animazione
-            target.classList.add('fade-in');
+            if(target) {
+                target.classList.remove('hidden');
+                void target.offsetWidth; // Trigger reflow per riavviare animazione
+                target.classList.add('fade-in');
+            }
         }
 
         // Gestione Settings
