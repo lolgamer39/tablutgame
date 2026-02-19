@@ -112,6 +112,38 @@
         </div>
     </div>
 
+    <div id="confirm-surrender-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 id="confirm-surrender-title">Abbandona</h3>
+            <p id="confirm-surrender-desc">Sei sicuro di voler abbandonare?</p>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="executeSurrender()">Sì, abbandona</button>
+                <button class="btn btn-outline" onclick="closeConfirmModals()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-undo-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Annulla Mossa</h3>
+            <p id="confirm-undo-desc">Vuoi annullare l'ultima mossa?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="executeUndo()">Sì, annulla</button>
+                <button class="btn btn-outline" onclick="closeConfirmModals()">Indietro</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-restart-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Riavvia Partita</h3>
+            <p>Sei sicuro di voler riavviare la partita da capo?</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="executeRestart()">Sì, riavvia</button>
+                <button class="btn btn-outline" onclick="closeConfirmModals()">Annulla</button>
+            </div>
+        </div>
+    </div>
     <div id="settings-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>Impostazioni</h3>
