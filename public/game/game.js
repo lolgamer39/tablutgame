@@ -78,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    // Funzione per il pulsante "Gioca di nuovo"
     const playAgainBtn = document.getElementById('play-again-btn');
     if(playAgainBtn) {
         playAgainBtn.onclick = () => {
@@ -140,14 +139,77 @@ function exitGameAndClear() {
     window.location.href = '../index.html';
 }
 
+// --- GESTIONE NUOVI MODALI DI CONFERMA ---
+
+function closeConfirmModals() {
+    document.getElementById('confirm-surrender-modal').classList.add('hidden');
+    document.getElementById('confirm-undo-modal').classList.add('hidden');
+    document.getElementById('confirm-restart-modal').classList.add('hidden');
+}
+
+// 1. Riavvia
 function restartLocalGame() {
-    if(confirm("Sei sicuro di voler riavviare la partita da capo?")) {
-        localStorage.removeItem('tablut_active_game');
-        startGame();
+    document.getElementById('confirm-restart-modal').classList.remove('hidden');
+}
+function executeRestart() {
+    closeConfirmModals();
+    localStorage.removeItem('tablut_active_game');
+    startGame();
+}
+
+// 2. Abbandona / Annulla
+function handleSurrender() {
+    if (mode === 'local') return;
+    
+    const isAnnulla = movesCount < 2;
+    document.getElementById('confirm-surrender-title').innerText = isAnnulla ? "Annulla Partita" : "Abbandona";
+    document.getElementById('confirm-surrender-desc').innerText = isAnnulla ? 
+        "Sei sicuro di voler annullare la partita? Non hai ancora mosso." : 
+        "Sei sicuro di voler abbandonare e dichiarare la sconfitta?";
+    
+    document.getElementById('confirm-surrender-modal').classList.remove('hidden');
+}
+function executeSurrender() {
+    closeConfirmModals();
+    localStorage.removeItem('tablut_active_game');
+    socket.emit('surrender_game', { gameId });
+}
+
+// 3. Annulla Mossa
+function requestUndo() {
+    if (mode === 'local') {
+        if (canUndoLocal && movesCount > 0) {
+            document.getElementById('confirm-undo-desc').innerText = "Vuoi annullare l'ultima mossa?";
+            document.getElementById('confirm-undo-modal').classList.remove('hidden');
+        }
+    } else {
+        if(undosLeft > 0 && turn !== myColor) { 
+            document.getElementById('confirm-undo-desc').innerText = `Vuoi richiedere di annullare la mossa all'avversario?\n(Hai ancora ${undosLeft} tentativi)`;
+            document.getElementById('confirm-undo-modal').classList.remove('hidden');
+        } else if (undosLeft <= 0) alert("Tentativi esauriti.");
+        else alert("Non è il tuo turno per annullare.");
+    }
+}
+function executeUndo() {
+    closeConfirmModals();
+    if (mode === 'local') {
+        gameHistoryList.pop(); 
+        moveLog.pop();
+        const prevState = gameHistoryList[gameHistoryList.length - 1];
+        board = JSON.parse(prevState);
+        turn = turn === 'white' ? 'black' : 'white'; 
+        movesCount--; 
+        currentHistoryIndex = gameHistoryList.length - 1;
+        canUndoLocal = false; 
+        saveGameState();
+        drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
+    } else {
+        socket.emit('request_undo', { gameId });
     }
 }
 
-// --- SETTINGS ---
+// ----------------------------------------
+
 function loadSettings() {
     const savedSfx = localStorage.getItem('tablut_sfx_on'), savedSfxVol = localStorage.getItem('tablut_sfx_vol');
     if(savedSfx !== null) audioSettings.sfxOn = (savedSfx === 'true');
@@ -396,7 +458,6 @@ function updateButtonsUI() {
             if(!b) return;
             b.classList.remove('hidden'); b.style.display = 'block';
             
-            // LA MODIFICA RICHIESTA: Se movesCount < 2 (il bianco non ha ancora mosso)
             if (movesCount < 2) { 
                 b.innerText = "Annulla Partita"; 
                 b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); 
@@ -411,41 +472,6 @@ function updateButtonsUI() {
             b.innerText = `Annulla Mossa (${undosLeft})`; 
             b.disabled = (undosLeft <= 0 || gameOver);
         });
-    }
-}
-
-function handleSurrender() {
-    if (mode === 'local') return;
-    
-    // LA MODIFICA RICHIESTA: Usa movesCount < 2
-    const action = movesCount < 2 ? "annullare" : "abbandonare"; 
-    if(confirm(`Sei sicuro di voler ${action} la partita?`)) {
-        localStorage.removeItem('tablut_active_game');
-        socket.emit('surrender_game', { gameId });
-    }
-}
-
-function requestUndo() {
-    if (mode === 'local') {
-        if (canUndoLocal && movesCount > 0) {
-            gameHistoryList.pop(); 
-            moveLog.pop();
-            const prevState = gameHistoryList[gameHistoryList.length - 1];
-            board = JSON.parse(prevState);
-            turn = turn === 'white' ? 'black' : 'white'; 
-            movesCount--; 
-            currentHistoryIndex = gameHistoryList.length - 1;
-            canUndoLocal = false; 
-            saveGameState();
-            drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
-        }
-    } else {
-        if(undosLeft > 0 && turn !== myColor) { 
-            if(confirm(`Vuoi richiedere di annullare la mossa?\n(Hai ancora ${undosLeft} tentativi)`)) {
-                socket.emit('request_undo', { gameId });
-            }
-        } else if (undosLeft <= 0) alert("Tentativi esauriti.");
-        else alert("Non è il tuo turno per annullare.");
     }
 }
 
@@ -478,7 +504,6 @@ function startSocketListeners() {
 
     socket.on('opponent_move', (m) => { makeMove(m.r1, m.c1, m.r2, m.c2); });
     
-    // GESTIONE NUOVO BANNER ABBANDONO/ANNULLA
     socket.on('game_over_forced', ({ winner, reason, surrendererColor }) => {
         localStorage.removeItem('tablut_active_game');
         if (reason === 'cancelled') {
