@@ -53,16 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const requestedMode = params.get('mode') || 'local';
     
-    // CONTROLLO DI SICUREZZA ANTI-GHOST SAVE
     let validSave = false;
     if (savedState && !params.get('forceNew')) {
         try {
             const parsedState = JSON.parse(savedState);
-            // Il salvataggio è valido SOLO se corrisponde alla modalità richiesta nell'URL
             if (parsedState.mode === requestedMode) {
                 validSave = true;
             } else {
-                localStorage.removeItem('tablut_active_game'); // Cestina salvataggio sbagliato
+                localStorage.removeItem('tablut_active_game');
             }
         } catch(e) {}
     }
@@ -70,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (validSave) {
         restoreGameState(savedState);
     } else {
-        // Avvia una partita pulita
         mode = requestedMode;
         const name = params.get('name') || 'Giocatore';
         const time = params.get('time') || 'no-time';
@@ -163,7 +160,6 @@ function closeConfirmModals() {
     document.getElementById('confirm-restart-modal').classList.add('hidden');
 }
 
-// 1. Riavvia
 function restartLocalGame() {
     document.getElementById('confirm-restart-modal').classList.remove('hidden');
 }
@@ -173,7 +169,6 @@ function executeRestart() {
     startGame();
 }
 
-// 2. Abbandona / Annulla
 function handleSurrender() {
     if (mode === 'local') return;
     
@@ -191,7 +186,6 @@ function executeSurrender() {
     socket.emit('surrender_game', { gameId });
 }
 
-// 3. Annulla Mossa
 function requestUndo() {
     if (mode === 'local') {
         if (canUndoLocal && movesCount > 0) {
@@ -223,8 +217,6 @@ function executeUndo() {
         socket.emit('request_undo', { gameId });
     }
 }
-
-// ----------------------------------------
 
 function loadSettings() {
     const savedSfx = localStorage.getItem('tablut_sfx_on'), savedSfxVol = localStorage.getItem('tablut_sfx_vol');
@@ -323,12 +315,22 @@ function makeMove(r1, c1, r2, c2) {
     
     saveGameState();
 
+    // 1. Aggiorna interfaccia per noi prima di bloccarci
+    updateMoveTable(); updateNavUI(); drawBoard(); updateUI(); updateButtonsUI();
+
+    // 2. INVIA LA MOSSA ALL'AVVERSARIO (MODIFICA FONDAMENTALE)
+    // Inviamo la mossa *prima* di verificare se abbiamo vinto, così
+    // l'avversario riceve i dati e fa scattare il banner di sconfitta sul suo schermo!
+    if (mode === 'online' && myColor !== turn) {
+        socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
+    }
+
+    // 3. Controlliamo se qualcuno ha vinto (Fuga o cattura)
     if (checkWin()) return;
+    
+    // 4. Controllo del pareggio per ripetizione
     const hash = JSON.stringify(board) + turn; historyHash[hash] = (historyHash[hash] || 0) + 1;
     if (historyHash[hash] >= 3) { endGame('Pareggio per ripetizione di mosse', 'info'); if(mode==='online') socket.emit('game_over', { gameId }); return; }
-    
-    updateMoveTable(); updateNavUI(); drawBoard(); updateUI(); updateButtonsUI();
-    if (mode === 'online' && myColor !== turn) socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
 }
 
 function updateMoveTable() {
