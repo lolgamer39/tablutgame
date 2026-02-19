@@ -28,7 +28,7 @@ let movesCount = 0;
 let undosLeft = 3;  
 let currentHistoryIndex = 0;
 let showHints = true;
-let canUndoLocal = false; // Flag per permettere un solo undo locale alla volta
+let canUndoLocal = false; 
 
 let audioSettings = { sfxOn: true, sfxVol: 0.6 };
 
@@ -43,26 +43,24 @@ const themes = {
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     
-    // Genera o recupera l'ID del giocatore per le riconnessioni
     playerId = localStorage.getItem('tablut_player_id');
     if (!playerId) {
         playerId = 'player_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('tablut_player_id', playerId);
     }
 
-    // Controlla se c'è una partita salvata
     const savedState = localStorage.getItem('tablut_active_game');
     const params = new URLSearchParams(window.location.search);
     
-    // Se l'utente clicca "Cerca Nuovo" passa un parametro forceNew=true per ignorare il salvataggio
     if (savedState && !params.get('forceNew')) {
         restoreGameState(savedState);
     } else {
-        // Nuova partita
         mode = params.get('mode') || 'local';
         const name = params.get('name') || 'Giocatore';
         const time = params.get('time') || 'no-time';
         
+        storedParams = { name, time };
+
         if (mode === 'online') {
             initOnline(name, time);
         } else {
@@ -80,24 +78,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'ArrowRight') navigateHistory(1);
     });
 
-    const playAgainBtn = document.getElementById('play-again-same-settings');
+    // Funzione per il pulsante "Gioca di nuovo"
+    const playAgainBtn = document.getElementById('play-again-btn');
     if(playAgainBtn) {
         playAgainBtn.onclick = () => {
-            const name = document.getElementById('my-name').innerText;
-            // Passa forceNew=true
-            window.location.href = `game.html?mode=online&name=${encodeURIComponent(name)}&time=no-time&forceNew=true`;
+            const name = document.getElementById('my-name') ? document.getElementById('my-name').innerText : 'Giocatore';
+            const time = storedParams.time || 'no-time';
+            window.location.href = `game.html?mode=${mode}&name=${encodeURIComponent(name)}&time=${time}&forceNew=true`;
         };
     }
 });
 
 // --- SALVATAGGIO STATO ---
 function saveGameState() {
-    if (gameOver) return; // Non salvare partite finite
+    if (gameOver) return; 
     const state = {
         board, turn, gameHistoryList, moveLog, movesCount, 
         mode, gameId, myColor, timers, undosLeft, canUndoLocal,
         oppName: document.getElementById('opp-name') ? document.getElementById('opp-name').innerText : '',
-        myName: document.getElementById('my-name') ? document.getElementById('my-name').innerText : ''
+        myName: document.getElementById('my-name') ? document.getElementById('my-name').innerText : '',
+        storedParams
     };
     localStorage.setItem('tablut_active_game', JSON.stringify(state));
 }
@@ -115,6 +115,7 @@ function restoreGameState(savedData) {
     timers = state.timers;
     undosLeft = state.undosLeft;
     canUndoLocal = state.canUndoLocal || false;
+    storedParams = state.storedParams || { time: 'no-time' };
     currentHistoryIndex = gameHistoryList.length - 1;
     
     if (mode === 'online') {
@@ -127,17 +128,13 @@ function restoreGameState(savedData) {
         
         reconnectOnline();
     } else {
-        updateUI();
-        updateButtonsUI();
-        updateMoveTable();
-        updateNavUI();
-        drawBoard();
+        updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI(); drawBoard();
     }
 }
 
 function exitGameAndClear() {
     localStorage.removeItem('tablut_active_game');
-    if (mode === 'online' && socket) {
+    if (mode === 'online' && socket && !gameOver) {
         socket.emit('surrender_game', { gameId });
     }
     window.location.href = '../index.html';
@@ -150,13 +147,11 @@ function restartLocalGame() {
     }
 }
 
-// --- SETTINGS AUDIO & TEMA ---
+// --- SETTINGS ---
 function loadSettings() {
-    const savedSfx = localStorage.getItem('tablut_sfx_on');
-    const savedSfxVol = localStorage.getItem('tablut_sfx_vol');
+    const savedSfx = localStorage.getItem('tablut_sfx_on'), savedSfxVol = localStorage.getItem('tablut_sfx_vol');
     if(savedSfx !== null) audioSettings.sfxOn = (savedSfx === 'true');
     if(savedSfxVol !== null) audioSettings.sfxVol = parseFloat(savedSfxVol);
-
     const st = document.getElementById('sfx-toggle'), sv = document.getElementById('sfx-vol');
     if(st) st.checked = audioSettings.sfxOn; if(sv) sv.value = audioSettings.sfxVol;
 
@@ -165,14 +160,12 @@ function loadSettings() {
     if(sel) sel.value = savedTheme;
     applyTheme(savedTheme);
 }
-
 function updateAudioSettings() {
     audioSettings.sfxOn = document.getElementById('sfx-toggle').checked;
     audioSettings.sfxVol = document.getElementById('sfx-vol').value;
     localStorage.setItem('tablut_sfx_on', audioSettings.sfxOn);
     localStorage.setItem('tablut_sfx_vol', audioSettings.sfxVol);
 }
-
 function applyTheme(themeName) {
     const t = themes[themeName] || themes['classic'];
     document.documentElement.style.setProperty('--board-bg', t.board);
@@ -181,13 +174,8 @@ function applyTheme(themeName) {
     document.documentElement.style.setProperty('--hint-color', t.hint);
     localStorage.setItem('tablut_theme', themeName);
 }
-
-function playMoveSound() {
-    if (audioSettings.sfxOn) { const sound = document.getElementById('move-sound'); if(sound) { sound.currentTime = 0; sound.volume = audioSettings.sfxVol; sound.play().catch(()=>{}); } }
-}
-function playWinSound() {
-    if (audioSettings.sfxOn) { const sound = document.getElementById('win-sound'); if(sound) { sound.currentTime = 0; sound.volume = 1.0; sound.play().catch(()=>{}); } }
-}
+function playMoveSound() { if (audioSettings.sfxOn) { const sound = document.getElementById('move-sound'); if(sound) { sound.currentTime = 0; sound.volume = audioSettings.sfxVol; sound.play().catch(()=>{}); } } }
+function playWinSound() { if (audioSettings.sfxOn) { const sound = document.getElementById('win-sound'); if(sound) { sound.currentTime = 0; sound.volume = 1.0; sound.play().catch(()=>{}); } } }
 
 // --- LOGICA GIOCO ---
 function toggleSettingsModal() { document.getElementById('settings-modal').classList.toggle('hidden'); }
@@ -207,7 +195,6 @@ function drawBoard() {
     let stateToDraw = board;
     if (gameHistoryList.length > 0) stateToDraw = JSON.parse(gameHistoryList[currentHistoryIndex]);
     const isLive = (currentHistoryIndex === gameHistoryList.length - 1);
-    
     let moves = [];
     if (isLive && selected && !gameOver && showHints) moves = getMoves(selected.r, selected.c);
 
@@ -254,13 +241,13 @@ function makeMove(r1, c1, r2, c2) {
     gameHistoryList.push(JSON.stringify(board));
     currentHistoryIndex = gameHistoryList.length - 1;
     turn = turn === 'white' ? 'black' : 'white';
-    canUndoLocal = true; // Dopo una mossa si può fare undo locale
+    canUndoLocal = true; 
     
     saveGameState();
 
     if (checkWin()) return;
     const hash = JSON.stringify(board) + turn; historyHash[hash] = (historyHash[hash] || 0) + 1;
-    if (historyHash[hash] >= 3) { endGame('Pareggio per ripetizione di mosse'); if(mode==='online') socket.emit('game_over', { gameId }); return; }
+    if (historyHash[hash] >= 3) { endGame('Pareggio per ripetizione di mosse', 'info'); if(mode==='online') socket.emit('game_over', { gameId }); return; }
     
     updateMoveTable(); updateNavUI(); drawBoard(); updateUI(); updateButtonsUI();
     if (mode === 'online' && myColor !== turn) socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
@@ -334,21 +321,51 @@ function checkKingCapture(r, c) {
     adj.forEach(([ar, ac]) => {
         if (ar<0 || ar>8 || ac<0 || ac>8) attackers++; else if (board[ar][ac] === 3) attackers++; else if (ar===4 && ac===4) attackers++; 
     });
-    if (attackers >= 4) endGame('Vittoria Neri!');
+    if (attackers >= 4) triggerVictory('black', 'I Neri hanno catturato il Re!');
 }
 
 function checkWin() {
     let king = null; for(let i=0; i<9; i++) for(let j=0; j<9; j++) if(board[i][j]===2) king={r:i, c:j};
-    if(!king) { endGame('Vittoria Neri!'); return true; }
-    if((king.r===0||king.r===8) && (king.c===0||king.c===8)) { endGame('Vittoria Bianchi!'); return true; }
+    if(!king) { triggerVictory('black', 'I Neri hanno catturato il Re!'); return true; }
+    if((king.r===0||king.r===8) && (king.c===0||king.c===8)) { triggerVictory('white', 'Il Re è fuggito!'); return true; }
     return false;
 }
 
-function endGame(msg) {
-    gameOver = true; playWinSound();
-    localStorage.removeItem('tablut_active_game'); // Rimuovi stato a fine partita
-    document.getElementById('winner-msg').innerText = msg;
-    document.getElementById('game-over-modal').classList.remove('hidden');
+// --- FUNZIONI DI FINE PARTITA ---
+function triggerVictory(winningColor, msg) {
+    if (mode === 'local') {
+        endGame(`Vittoria ${winningColor === 'white' ? 'Bianchi' : 'Neri'}! ${msg}`, 'win');
+    } else {
+        if (myColor === winningColor) endGame(msg, 'win');
+        else endGame(msg, 'loss');
+    }
+}
+
+// type può essere 'win', 'loss', 'cancelled', 'info'
+function endGame(msg, type = 'info') {
+    gameOver = true; 
+    playWinSound();
+    localStorage.removeItem('tablut_active_game');
+    
+    const modal = document.getElementById('game-result-modal');
+    const titleEl = document.getElementById('result-title');
+    
+    if (type === 'win') {
+        titleEl.innerText = "Vittoria!";
+        titleEl.style.color = "#facc15"; // Giallo
+    } else if (type === 'loss') {
+        titleEl.innerText = "Sconfitta";
+        titleEl.style.color = "#ef4444"; // Rosso
+    } else if (type === 'cancelled') {
+        titleEl.innerText = "Partita Annullata";
+        titleEl.style.color = "#94a3b8"; // Grigio
+    } else {
+        titleEl.innerText = "Fine Partita";
+        titleEl.style.color = "#facc15";
+    }
+
+    document.getElementById('result-msg').innerText = msg;
+    modal.classList.remove('hidden');
     if(timerInterval) clearInterval(timerInterval);
 }
 
@@ -364,7 +381,6 @@ function updateButtonsUI() {
     const btnsRestart = [document.getElementById('restart-btn'), document.getElementById('restart-btn-mobile')];
 
     if (mode === 'local') {
-        // Modalità Locale: Nascondi Abbandona, Mostra Riavvia
         btnsSurrender.forEach(b => { if(b) { b.classList.add('hidden'); b.style.display = 'none'; } });
         btnsRestart.forEach(b => { if(b) { b.classList.remove('hidden'); b.style.display = 'block'; } });
         
@@ -375,13 +391,19 @@ function updateButtonsUI() {
         });
 
     } else {
-        // Modalità Online: Mostra Abbandona, Nascondi Riavvia
         btnsRestart.forEach(b => { if(b) { b.classList.add('hidden'); b.style.display = 'none'; } });
         btnsSurrender.forEach(b => {
             if(!b) return;
             b.classList.remove('hidden'); b.style.display = 'block';
-            if (movesCount === 0) { b.innerText = "Annulla Partita"; b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); } 
-            else { b.innerText = "Abbandona"; b.classList.remove('btn-secondary'); b.classList.add('btn-danger'); }
+            
+            // LA MODIFICA RICHIESTA: Se movesCount < 2 (il bianco non ha ancora mosso)
+            if (movesCount < 2) { 
+                b.innerText = "Annulla Partita"; 
+                b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); 
+            } else { 
+                b.innerText = "Abbandona"; 
+                b.classList.remove('btn-secondary'); b.classList.add('btn-danger'); 
+            }
         });
 
         btnsUndo.forEach(b => {
@@ -393,8 +415,10 @@ function updateButtonsUI() {
 }
 
 function handleSurrender() {
-    if (mode === 'local') return; // In locale non c'è abbandona
-    const action = movesCount === 0 ? "annullare" : "abbandonare";
+    if (mode === 'local') return;
+    
+    // LA MODIFICA RICHIESTA: Usa movesCount < 2
+    const action = movesCount < 2 ? "annullare" : "abbandonare"; 
     if(confirm(`Sei sicuro di voler ${action} la partita?`)) {
         localStorage.removeItem('tablut_active_game');
         socket.emit('surrender_game', { gameId });
@@ -403,7 +427,6 @@ function handleSurrender() {
 
 function requestUndo() {
     if (mode === 'local') {
-        // Undo Locale Istantaneo (solo ultima mossa)
         if (canUndoLocal && movesCount > 0) {
             gameHistoryList.pop(); 
             moveLog.pop();
@@ -412,12 +435,11 @@ function requestUndo() {
             turn = turn === 'white' ? 'black' : 'white'; 
             movesCount--; 
             currentHistoryIndex = gameHistoryList.length - 1;
-            canUndoLocal = false; // Non puoi fare undo 2 volte di fila
+            canUndoLocal = false; 
             saveGameState();
             drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
         }
     } else {
-        // Undo Online (tramite socket)
         if(undosLeft > 0 && turn !== myColor) { 
             if(confirm(`Vuoi richiedere di annullare la mossa?\n(Hai ancora ${undosLeft} tentativi)`)) {
                 socket.emit('request_undo', { gameId });
@@ -451,15 +473,23 @@ function startSocketListeners() {
     socket.on('assign_color', (c) => { 
         myColor = c; 
         if(timers.white > 0) startTimer(); 
-        saveGameState(); // Salva lo stato inziale una volta accoppiati
+        saveGameState(); 
     });
 
     socket.on('opponent_move', (m) => { makeMove(m.r1, m.c1, m.r2, m.c2); });
     
-    socket.on('game_over_forced', ({ winner, reason }) => {
+    // GESTIONE NUOVO BANNER ABBANDONO/ANNULLA
+    socket.on('game_over_forced', ({ winner, reason, surrendererColor }) => {
         localStorage.removeItem('tablut_active_game');
-        if (reason === 'cancelled') document.getElementById('game-cancelled-modal').classList.remove('hidden');
-        else endGame(winner === 'white' ? 'Vittoria Bianchi (Resa)' : 'Vittoria Neri (Resa)');
+        if (reason === 'cancelled') {
+            endGame("La partita è stata annullata prima dell'inizio.", 'cancelled');
+        } else {
+            if (myColor === surrendererColor) {
+                endGame("Hai abbandonato la partita.", 'loss');
+            } else {
+                endGame("L'avversario ha abbandonato la partita.", 'win');
+            }
+        }
     });
     
     socket.on('undo_requested', () => { document.getElementById('undo-request-modal').classList.remove('hidden'); });
@@ -486,12 +516,20 @@ function startSocketListeners() {
     socket.on('game_over_timeout', ({ winner }) => {
         localStorage.removeItem('tablut_active_game');
         document.getElementById('opponent-warning').classList.add('hidden');
-        endGame(`Vittoria ${winner} (Timeout disconnessione/inattività)`);
+        if (myColor === winner) {
+            endGame("L'avversario si è disconnesso definitivamente.", 'win');
+        } else {
+            endGame("Ti sei disconnesso per troppo tempo.", 'loss');
+        }
     });
 
     socket.on('time_expired', (d) => {
         localStorage.removeItem('tablut_active_game');
-        endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)");
+        if (myColor === d.loser) {
+            endGame("Il tuo tempo è scaduto.", 'loss');
+        } else {
+            endGame("Il tempo dell'avversario è scaduto.", 'win');
+        }
     });
     
     socket.on('pong', () => { const ms = Date.now() - lastPing; updateSignal(ms); document.getElementById('connection-warning').classList.add('hidden'); });
@@ -543,7 +581,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if(gameOver) return;
         if(turn === 'white') timers.white--; else timers.black--;
-        saveGameState(); // Salva lo scorrere del tempo
+        saveGameState(); 
         const fmt = (t) => { if(t<0) return "00:00"; let m=Math.floor(t/60), s=t%60; return `${m}:${s<10?'0'+s:s}`; };
         document.getElementById('my-timer').innerText = fmt(myColor==='white'?timers.white:timers.black);
         document.getElementById('opp-timer').innerText = fmt(myColor==='white'?timers.black:timers.white);
