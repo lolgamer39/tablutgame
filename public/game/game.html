@@ -55,9 +55,10 @@
                 </div>
 
                 <div id="mobile-actions" class="mobile-only-actions">
-                    <button id="undo-btn-mobile" class="btn btn-secondary btn-sm" onclick="requestUndo()">Annulla</button>
+                    <button id="undo-btn-mobile" class="btn btn-secondary btn-sm" onclick="requestUndo()">Annulla Mossa</button>
                     <button id="settings-btn-mobile" class="btn btn-outline btn-icon btn-sm" onclick="toggleSettingsModal()">⚙️</button>
                     <button id="surrender-btn-mobile" class="btn btn-danger btn-sm" onclick="handleSurrender()">Abbandona</button>
+                    <button id="restart-btn-mobile" class="btn btn-primary btn-sm hidden" onclick="restartLocalGame()">Riavvia Partita</button>
                 </div>
             </div>
         </div>
@@ -83,6 +84,7 @@
             <div class="desktop-actions">
                 <button id="undo-btn" class="btn btn-secondary" onclick="requestUndo()">Annulla Mossa</button>
                 <button id="surrender-btn" class="btn btn-danger" onclick="handleSurrender()">Abbandona Partita</button>
+                <button id="restart-btn" class="btn btn-primary hidden" onclick="restartLocalGame()">Riavvia Partita</button>
             </div>
         </div>
 
@@ -92,7 +94,7 @@
         <div class="modal-card">
             <h2 id="winner-title">Vittoria!</h2>
             <p id="winner-msg" class="modal-desc"></p>
-            <button class="btn btn-primary" onclick="window.location.href='../index.html'">Torna al Menu</button>
+            <button class="btn btn-primary" onclick="exitGameAndClear()">Torna al Menu</button>
         </div>
     </div>
 
@@ -101,7 +103,7 @@
             <h2 style="color: #ef4444;">Partita Annullata</h2>
             <p class="modal-desc">La partita è stata interrotta.</p>
             <div class="modal-actions">
-                <button class="btn btn-outline" onclick="window.location.href='../index.html'">Home</button>
+                <button class="btn btn-outline" onclick="exitGameAndClear()">Home</button>
                 <button class="btn btn-primary" id="play-again-same-settings">Cerca Nuovo</button>
             </div>
         </div>
@@ -147,14 +149,16 @@
             
             <select id="theme-selector" onchange="applyTheme(this.value)">
                 <option value="classic">🛡️ Classico (Legno e Oro)</option>
-                <option value="ice">❄️ Regno di Ghiaccio</option>
-                <option value="magma">🔥 Magma Vulcano</option>
-                <option value="forest">🌲 Foresta Notturna</option>
-                <option value="cyber">🤖 Cyberpunk Neon</option>
+                <option value="ice">❄️ Ghiaccio</option>
+                <option value="magma">🔥 Magma</option>
+                <option value="forest">🌲 Foresta</option>
+                <option value="cyber">🤖 Neon</option>
             </select>
             
             <br><br>
             <button class="btn btn-outline" onclick="toggleSettingsModal()">Chiudi</button>
+            <br><br>
+            <button class="btn btn-danger btn-sm" onclick="exitGameAndClear()">Torna al Menu (Esci)</button>
         </div>
     </div>
 
