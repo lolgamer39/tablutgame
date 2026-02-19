@@ -51,11 +51,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedState = localStorage.getItem('tablut_active_game');
     const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get('mode') || 'local';
     
+    // CONTROLLO DI SICUREZZA ANTI-GHOST SAVE
+    let validSave = false;
     if (savedState && !params.get('forceNew')) {
+        try {
+            const parsedState = JSON.parse(savedState);
+            // Il salvataggio è valido SOLO se corrisponde alla modalità richiesta nell'URL
+            if (parsedState.mode === requestedMode) {
+                validSave = true;
+            } else {
+                localStorage.removeItem('tablut_active_game'); // Cestina salvataggio sbagliato
+            }
+        } catch(e) {}
+    }
+
+    if (validSave) {
         restoreGameState(savedState);
     } else {
-        mode = params.get('mode') || 'local';
+        // Avvia una partita pulita
+        mode = requestedMode;
         const name = params.get('name') || 'Giocatore';
         const time = params.get('time') || 'no-time';
         
@@ -393,7 +409,6 @@ function checkWin() {
     return false;
 }
 
-// --- FUNZIONI DI FINE PARTITA ---
 function triggerVictory(winningColor, msg) {
     if (mode === 'local') {
         endGame(`Vittoria ${winningColor === 'white' ? 'Bianchi' : 'Neri'}! ${msg}`, 'win');
@@ -403,7 +418,6 @@ function triggerVictory(winningColor, msg) {
     }
 }
 
-// type può essere 'win', 'loss', 'cancelled', 'info'
 function endGame(msg, type = 'info') {
     gameOver = true; 
     playWinSound();
@@ -414,13 +428,13 @@ function endGame(msg, type = 'info') {
     
     if (type === 'win') {
         titleEl.innerText = "Vittoria!";
-        titleEl.style.color = "#facc15"; // Giallo
+        titleEl.style.color = "#facc15"; 
     } else if (type === 'loss') {
         titleEl.innerText = "Sconfitta";
-        titleEl.style.color = "#ef4444"; // Rosso
+        titleEl.style.color = "#ef4444"; 
     } else if (type === 'cancelled') {
         titleEl.innerText = "Partita Annullata";
-        titleEl.style.color = "#94a3b8"; // Grigio
+        titleEl.style.color = "#94a3b8"; 
     } else {
         titleEl.innerText = "Fine Partita";
         titleEl.style.color = "#facc15";
