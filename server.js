@@ -6,8 +6,8 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    pingInterval: 10000, // Invia heartbeat ogni 10s
-    pingTimeout: 30000   // Considera persa la connessione dopo 30s
+    pingInterval: 10000, 
+    pingTimeout: 30000   
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -16,13 +16,10 @@ let waitingQueue = { 'no-time': [], '10': [], '30': [] };
 let games = {};
 
 io.on('connection', (socket) => {
-    // Gestione Ping custom (oltre a quello di socket.io)
     socket.on('ping', () => socket.emit('pong', Date.now()));
 
     // 1. Ricerca Partita
-    socket.on('find_game', ({ username, timeControl }) => {
-        // Se il giocatore era già in una partita "sospesa", gestiamo la riconnessione (Logica base)
-        // Per ora implementiamo la ricerca standard
+    socket.on('find_game', ({ username, timeControl, playerId }) => {
         const queue = waitingQueue[timeControl];
         
         if (queue.length > 0) {
@@ -34,14 +31,14 @@ io.on('connection', (socket) => {
 
             games[gameId] = {
                 id: gameId,
-                p1: { id: opponent.id, socket: opponent.socket, color: p1Color, name: opponent.name, time: parseInt(timeControl)*60, undos: 3 },
-                p2: { id: socket.id, socket: socket, color: p2Color, name: username, time: parseInt(timeControl)*60, undos: 3 },
+                p1: { id: opponent.id, socket: opponent.socket, color: p1Color, name: opponent.name, time: parseInt(timeControl)*60, undos: 3, playerId: opponent.playerId },
+                p2: { id: socket.id, socket: socket, color: p2Color, name: username, time: parseInt(timeControl)*60, undos: 3, playerId: playerId },
                 turn: 'black',
                 startTime: Date.now(),
                 lastMoveTime: Date.now(),
                 moves: 0,
                 timerInterval: null,
-                disconnectTimeout: null // Timer per i 2 minuti
+                disconnectTimeout: null 
             };
 
             opponent.socket.join(gameId);
@@ -59,7 +56,30 @@ io.on('connection', (socket) => {
             io.to(socket.id).emit('assign_color', p2Color);
 
         } else {
-            queue.push({ id: socket.id, name: username, socket: socket });
+            queue.push({ id: socket.id, name: username, socket: socket, playerId: playerId });
+        }
+    });
+
+    // 1.5 Riconnessione dopo aggiornamento pagina
+    socket.on('reconnect_game', ({ gameId, playerId }) => {
+        const game = games[gameId];
+        if (game) {
+            if (game.p1.playerId === playerId) {
+                game.p1.socket = socket;
+                game.p1.id = socket.id;
+            } else if (game.p2.playerId === playerId) {
+                game.p2.socket = socket;
+                game.p2.id = socket.id;
+            } else {
+                return; // Non autorizzato
+            }
+
+            socket.join(gameId);
+            if (game.disconnectTimeout) {
+                clearTimeout(game.disconnectTimeout);
+                game.disconnectTimeout = null;
+                io.to(gameId).emit('opponent_reconnected');
+            }
         }
     });
 
@@ -77,7 +97,6 @@ io.on('connection', (socket) => {
     socket.on('request_undo', ({ gameId }) => {
         const game = games[gameId];
         if(!game) return;
-        // Inoltra la richiesta all'avversario
         socket.to(gameId).emit('undo_requested');
     });
 
@@ -86,11 +105,9 @@ io.on('connection', (socket) => {
         if(!game) return;
 
         if (answer === true) {
-            // Riduciamo il contatore di chi ha chiesto (l'avversario di chi risponde)
             const requester = (socket.id === game.p1.id) ? game.p2 : game.p1;
             if(requester.undos > 0) {
                 requester.undos--;
-                // Torniamo indietro col turno nel server
                 game.turn = game.turn === 'white' ? 'black' : 'white';
                 game.moves--; 
                 io.to(gameId).emit('undo_accepted', { 
@@ -104,45 +121,35 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. Abbandono / Annullamento
+    // 4. Abbandono
     socket.on('surrender_game', ({ gameId }) => {
         const game = games[gameId];
         if(game) {
             const winner = (socket.id === game.p1.id) ? game.p2.color : game.p1.color;
-            // Se moves == 0 è annullamento, altrimenti è resa
             const reason = game.moves === 0 ? 'cancelled' : 'surrender';
-            
             io.to(gameId).emit('game_over_forced', { winner, reason });
             closeGame(gameId);
         }
     });
 
-    // 5. Gestione Disconnessione Robusta
+    // 5. Gestione Disconnessione 
     socket.on('disconnect', () => {
-        // Rimuovi dalle code d'attesa
         for(let key in waitingQueue) {
             waitingQueue[key] = waitingQueue[key].filter(p => p.id !== socket.id);
         }
 
-        // Cerca se era in partita
         for (let gId in games) {
             const g = games[gId];
             if (g.p1.id === socket.id || g.p2.id === socket.id) {
-                
                 const opponentSocket = (g.p1.id === socket.id) ? g.p2.socket : g.p1.socket;
-                
-                // Avvisiamo l'avversario che c'è un problema di connessione
                 opponentSocket.emit('opponent_connection_lost');
 
-                // AVVIO TIMER DI RECUPERO (2 Minuti)
                 if (!g.disconnectTimeout) {
-                    console.log(`Partita ${gId}: utente disconnesso. Attendo 2 minuti.`);
                     g.disconnectTimeout = setTimeout(() => {
-                        // Tempo scaduto: Sconfitta
                         const winnerColor = (g.p1.id === socket.id) ? g.p2.color : g.p1.color;
                         io.to(gId).emit('game_over_timeout', { winner: winnerColor, reason: 'disconnection' });
                         closeGame(gId);
-                    }, 120000); // 120.000 ms = 2 minuti
+                    }, 120000); 
                 }
             }
         }
@@ -153,14 +160,12 @@ function startServerTimer(gameId) {
     const game = games[gameId];
     game.timerInterval = setInterval(() => {
         const now = Date.now();
-        // Logica timeout inattività (5 min) se nessuno muove
         if (now - game.lastMoveTime > 300000) {
             io.to(gameId).emit('game_over_timeout', { reason: 'inactivity' });
             closeGame(gameId);
             return;
         }
         
-        // Decremento tempo
         const activePlayer = game.turn === 'white' 
             ? (game.p1.color === 'white' ? game.p1 : game.p2)
             : (game.p1.color === 'black' ? game.p1 : game.p2);
