@@ -90,21 +90,13 @@
 
     </div>
 
-    <div id="game-over-modal" class="modal-overlay hidden">
+    <div id="game-result-modal" class="modal-overlay hidden">
         <div class="modal-card">
-            <h2 id="winner-title">Vittoria!</h2>
-            <p id="winner-msg" class="modal-desc"></p>
-            <button class="btn btn-primary" onclick="exitGameAndClear()">Torna al Menu</button>
-        </div>
-    </div>
-
-    <div id="game-cancelled-modal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h2 style="color: #ef4444;">Partita Annullata</h2>
-            <p class="modal-desc">La partita è stata interrotta.</p>
+            <h2 id="result-title">Vittoria!</h2>
+            <p id="result-msg" class="modal-desc"></p>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="exitGameAndClear()">Home</button>
-                <button class="btn btn-primary" id="play-again-same-settings">Cerca Nuovo</button>
+                <button class="btn btn-primary" id="play-again-btn">Gioca di nuovo</button>
             </div>
         </div>
     </div>
@@ -149,10 +141,10 @@
             
             <select id="theme-selector" onchange="applyTheme(this.value)">
                 <option value="classic">🛡️ Classico (Legno e Oro)</option>
-                <option value="ice">❄️ Ghiaccio</option>
-                <option value="magma">🔥 Magma</option>
-                <option value="forest">🌲 Foresta</option>
-                <option value="cyber">🤖 Neon</option>
+                <option value="ice">❄️ Regno di Ghiaccio</option>
+                <option value="magma">🔥 Magma Vulcano</option>
+                <option value="forest">🌲 Foresta Notturna</option>
+                <option value="cyber">🤖 Cyberpunk Neon</option>
             </select>
             
             <br><br>
