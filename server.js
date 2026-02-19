@@ -60,7 +60,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 1.5 Riconnessione dopo aggiornamento pagina
+    // Riconnessione dopo aggiornamento pagina
     socket.on('reconnect_game', ({ gameId, playerId }) => {
         const game = games[gameId];
         if (game) {
@@ -121,18 +121,23 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. Abbandono
+    // 4. Abbandono / Annulla Partita
     socket.on('surrender_game', ({ gameId }) => {
         const game = games[gameId];
         if(game) {
-            const winner = (socket.id === game.p1.id) ? game.p2.color : game.p1.color;
-            const reason = game.moves === 0 ? 'cancelled' : 'surrender';
-            io.to(gameId).emit('game_over_forced', { winner, reason });
+            const isSurrendererP1 = (socket.id === game.p1.id);
+            const winner = isSurrendererP1 ? game.p2.color : game.p1.color;
+            const surrendererColor = isSurrendererP1 ? game.p1.color : game.p2.color;
+            
+            // Si considera "Annullata" solo se il bianco non ha ancora mosso (moves < 2)
+            const reason = game.moves < 2 ? 'cancelled' : 'surrender';
+            
+            io.to(gameId).emit('game_over_forced', { winner, reason, surrendererColor });
             closeGame(gameId);
         }
     });
 
-    // 5. Gestione Disconnessione 
+    // 5. Gestione Disconnessione
     socket.on('disconnect', () => {
         for(let key in waitingQueue) {
             waitingQueue[key] = waitingQueue[key].filter(p => p.id !== socket.id);
