@@ -21,55 +21,53 @@ let mode = 'local';
 let socket;
 let myColor = null;
 let gameId = null;
+let playerId = null;
 let timers = { white: 0, black: 0 };
 let timerInterval = null;
 let movesCount = 0; 
 let undosLeft = 3;  
-let storedParams = {}; 
 let currentHistoryIndex = 0;
 let showHints = true;
+let canUndoLocal = false; // Flag per permettere un solo undo locale alla volta
 
-// CONFIGURAZIONE AUDIO
-let audioSettings = {
-    sfxOn: true,
-    sfxVol: 0.6
-};
+let audioSettings = { sfxOn: true, sfxVol: 0.6 };
 
-// --- DEFINIZIONE TEMI (Con colore mosse adattivo) ---
 const themes = {
-    classic: { 
-        board: '#5a3a22', throne: '#ffd700', escape: '#86efac', 
-        hint: 'rgba(20, 100, 20, 0.6)' // Verde scuro semitrasparente
-    },
-    ice: { 
-        board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe', 
-        hint: 'rgba(0, 40, 100, 0.8)' // Blu abisso scuro
-    },
-    magma: { 
-        board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5', 
-        hint: 'rgba(100, 20, 0, 0.8)' // Rosso scuro / Granata
-    },
-    forest: { 
-        board: '#14532d', throne: '#84cc16', escape: '#4ade80', 
-        hint: 'rgba(10, 50, 10, 0.9)' // Verde foresta quasi nero
-    },
-    cyber: { 
-        board: '#2e1065', throne: '#d946ef', escape: '#22d3ee', 
-        hint: 'rgba(80, 0, 120, 0.9)' // Viola scuro profondo
-    }
+    classic: { board: '#5a3a22', throne: '#ffd700', escape: '#86efac', hint: 'rgba(20, 100, 20, 0.6)' },
+    ice: { board: '#1e3a8a', throne: '#60a5fa', escape: '#dbeafe', hint: 'rgba(0, 40, 100, 0.8)' },
+    magma: { board: '#7f1d1d', throne: '#f97316', escape: '#fca5a5', hint: 'rgba(100, 20, 0, 0.8)' },
+    forest: { board: '#14532d', throne: '#84cc16', escape: '#4ade80', hint: 'rgba(10, 50, 10, 0.9)' },
+    cyber: { board: '#2e1065', throne: '#d946ef', escape: '#22d3ee', hint: 'rgba(80, 0, 120, 0.9)' }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const params = new URLSearchParams(window.location.search);
-    mode = params.get('mode') || 'local';
-    storedParams = { name: params.get('name'), time: params.get('time') };
-
     loadSettings();
+    
+    // Genera o recupera l'ID del giocatore per le riconnessioni
+    playerId = localStorage.getItem('tablut_player_id');
+    if (!playerId) {
+        playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('tablut_player_id', playerId);
+    }
 
-    if (mode === 'online') {
-        initOnline(storedParams.name, storedParams.time);
+    // Controlla se c'è una partita salvata
+    const savedState = localStorage.getItem('tablut_active_game');
+    const params = new URLSearchParams(window.location.search);
+    
+    // Se l'utente clicca "Cerca Nuovo" passa un parametro forceNew=true per ignorare il salvataggio
+    if (savedState && !params.get('forceNew')) {
+        restoreGameState(savedState);
     } else {
-        startGame();
+        // Nuova partita
+        mode = params.get('mode') || 'local';
+        const name = params.get('name') || 'Giocatore';
+        const time = params.get('time') || 'no-time';
+        
+        if (mode === 'online') {
+            initOnline(name, time);
+        } else {
+            startGame();
+        }
     }
     
     const btnPrev = document.getElementById('btn-prev');
@@ -85,24 +83,82 @@ document.addEventListener('DOMContentLoaded', () => {
     const playAgainBtn = document.getElementById('play-again-same-settings');
     if(playAgainBtn) {
         playAgainBtn.onclick = () => {
-            window.location.href = `game.html?mode=online&name=${encodeURIComponent(storedParams.name)}&time=${storedParams.time}`;
+            const name = document.getElementById('my-name').innerText;
+            // Passa forceNew=true
+            window.location.href = `game.html?mode=online&name=${encodeURIComponent(name)}&time=no-time&forceNew=true`;
         };
     }
 });
 
-// --- FUNZIONI SETTINGS ---
+// --- SALVATAGGIO STATO ---
+function saveGameState() {
+    if (gameOver) return; // Non salvare partite finite
+    const state = {
+        board, turn, gameHistoryList, moveLog, movesCount, 
+        mode, gameId, myColor, timers, undosLeft, canUndoLocal,
+        oppName: document.getElementById('opp-name') ? document.getElementById('opp-name').innerText : '',
+        myName: document.getElementById('my-name') ? document.getElementById('my-name').innerText : ''
+    };
+    localStorage.setItem('tablut_active_game', JSON.stringify(state));
+}
 
+function restoreGameState(savedData) {
+    const state = JSON.parse(savedData);
+    board = state.board;
+    turn = state.turn;
+    gameHistoryList = state.gameHistoryList;
+    moveLog = state.moveLog;
+    movesCount = state.movesCount;
+    mode = state.mode;
+    gameId = state.gameId;
+    myColor = state.myColor;
+    timers = state.timers;
+    undosLeft = state.undosLeft;
+    canUndoLocal = state.canUndoLocal || false;
+    currentHistoryIndex = gameHistoryList.length - 1;
+    
+    if (mode === 'online') {
+        document.getElementById('opp-name').innerText = state.oppName;
+        document.getElementById('my-name').innerText = state.myName;
+        const myDot = document.getElementById('my-color');
+        const oppDot = document.getElementById('opp-color');
+        if (myColor === 'white') { myDot.classList.add('is-white'); oppDot.classList.add('is-black'); } 
+        else { myDot.classList.add('is-black'); oppDot.classList.add('is-white'); }
+        
+        reconnectOnline();
+    } else {
+        updateUI();
+        updateButtonsUI();
+        updateMoveTable();
+        updateNavUI();
+        drawBoard();
+    }
+}
+
+function exitGameAndClear() {
+    localStorage.removeItem('tablut_active_game');
+    if (mode === 'online' && socket) {
+        socket.emit('surrender_game', { gameId });
+    }
+    window.location.href = '../index.html';
+}
+
+function restartLocalGame() {
+    if(confirm("Sei sicuro di voler riavviare la partita da capo?")) {
+        localStorage.removeItem('tablut_active_game');
+        startGame();
+    }
+}
+
+// --- SETTINGS AUDIO & TEMA ---
 function loadSettings() {
     const savedSfx = localStorage.getItem('tablut_sfx_on');
     const savedSfxVol = localStorage.getItem('tablut_sfx_vol');
-
     if(savedSfx !== null) audioSettings.sfxOn = (savedSfx === 'true');
     if(savedSfxVol !== null) audioSettings.sfxVol = parseFloat(savedSfxVol);
 
-    const st = document.getElementById('sfx-toggle');
-    const sv = document.getElementById('sfx-vol');
-    if(st) st.checked = audioSettings.sfxOn;
-    if(sv) sv.value = audioSettings.sfxVol;
+    const st = document.getElementById('sfx-toggle'), sv = document.getElementById('sfx-vol');
+    if(st) st.checked = audioSettings.sfxOn; if(sv) sv.value = audioSettings.sfxVol;
 
     const savedTheme = localStorage.getItem('tablut_theme') || 'classic';
     const sel = document.getElementById('theme-selector');
@@ -119,103 +175,56 @@ function updateAudioSettings() {
 
 function applyTheme(themeName) {
     const t = themes[themeName] || themes['classic'];
-    // Imposta tutte le variabili CSS inclusa quella per l'hint
     document.documentElement.style.setProperty('--board-bg', t.board);
     document.documentElement.style.setProperty('--throne-bg', t.throne);
     document.documentElement.style.setProperty('--escape-bg', t.escape);
     document.documentElement.style.setProperty('--hint-color', t.hint);
-    
     localStorage.setItem('tablut_theme', themeName);
 }
 
 function playMoveSound() {
-    if (audioSettings.sfxOn) {
-        const sound = document.getElementById('move-sound');
-        if(sound) {
-            sound.currentTime = 0;
-            sound.volume = audioSettings.sfxVol;
-            sound.play().catch(()=>{});
-        }
-    }
+    if (audioSettings.sfxOn) { const sound = document.getElementById('move-sound'); if(sound) { sound.currentTime = 0; sound.volume = audioSettings.sfxVol; sound.play().catch(()=>{}); } }
 }
-
 function playWinSound() {
-    if (audioSettings.sfxOn) {
-        const sound = document.getElementById('win-sound');
-        if(sound) {
-            sound.currentTime = 0;
-            sound.volume = 1.0; 
-            sound.play().catch(()=>{});
-        }
-    }
+    if (audioSettings.sfxOn) { const sound = document.getElementById('win-sound'); if(sound) { sound.currentTime = 0; sound.volume = 1.0; sound.play().catch(()=>{}); } }
 }
 
 // --- LOGICA GIOCO ---
-
-function toggleSettingsModal() {
-    document.getElementById('settings-modal').classList.toggle('hidden');
-}
-
-function toggleHints() {
-    showHints = document.getElementById('hints-toggle').checked;
-    drawBoard(); 
-}
+function toggleSettingsModal() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+function toggleHints() { showHints = document.getElementById('hints-toggle').checked; drawBoard(); }
 
 function startGame() {
     board = JSON.parse(JSON.stringify(initialLayout));
-    turn = 'black';
-    gameOver = false;
-    selected = null;
-    historyHash = {};
-    gameHistoryList = [JSON.stringify(board)];
-    moveLog = [];
-    movesCount = 0;
-    undosLeft = 3;
-    currentHistoryIndex = 0;
-    drawBoard();
-    updateUI();
-    updateButtonsUI();
-    updateMoveTable();
-    updateNavUI();
+    turn = 'black'; gameOver = false; selected = null; historyHash = {}; 
+    gameHistoryList = [JSON.stringify(board)]; moveLog = []; movesCount = 0; undosLeft = 3; currentHistoryIndex = 0;
+    canUndoLocal = false;
+    saveGameState();
+    drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
 }
 
 function drawBoard() {
-    const el = document.getElementById('board');
-    el.innerHTML = '';
+    const el = document.getElementById('board'); el.innerHTML = '';
     let stateToDraw = board;
     if (gameHistoryList.length > 0) stateToDraw = JSON.parse(gameHistoryList[currentHistoryIndex]);
     const isLive = (currentHistoryIndex === gameHistoryList.length - 1);
     
     let moves = [];
-    if (isLive && selected && !gameOver && showHints) {
-        moves = getMoves(selected.r, selected.c);
-    }
+    if (isLive && selected && !gameOver && showHints) moves = getMoves(selected.r, selected.c);
 
     for(let r=0; r<9; r++) {
         for(let c=0; c<9; c++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
+            const cell = document.createElement('div'); cell.className = 'cell';
             if(r===4 && c===4) cell.classList.add('throne');
             if((r===0||r===8) && (c===0||c===8)) cell.classList.add('escape');
-            
             if (r === 8) { const s = document.createElement('span'); s.className = 'coord coord-letter'; s.innerText = String.fromCharCode(97 + c); cell.appendChild(s); }
             if (c === 0) { const s = document.createElement('span'); s.className = 'coord coord-num'; s.innerText = 9 - r; cell.appendChild(s); }
-
-            if (isLive) cell.onclick = () => handleClick(r, c);
-            else cell.style.cursor = 'default';
-
+            if (isLive) cell.onclick = () => handleClick(r, c); else cell.style.cursor = 'default';
             if(isLive && selected && selected.r === r && selected.c === c) cell.classList.add('selected');
-            
-            if(isLive && showHints && moves.some(m => m.r===r && m.c===c)) {
-                const h = document.createElement('div'); h.className='hint'; cell.appendChild(h);
-            }
-
+            if(isLive && showHints && moves.some(m => m.r===r && m.c===c)) { const h = document.createElement('div'); h.className='hint'; cell.appendChild(h); }
             const val = stateToDraw[r][c];
             if(val !== 0) {
-                const p = document.createElement('div');
-                p.className = 'piece ' + (val===3 ? 'black-piece' : 'white-piece');
-                if(val===2) p.classList.add('king');
-                cell.appendChild(p);
+                const p = document.createElement('div'); p.className = 'piece ' + (val===3 ? 'black-piece' : 'white-piece');
+                if(val===2) p.classList.add('king'); cell.appendChild(p);
             }
             el.appendChild(cell);
         }
@@ -233,75 +242,55 @@ function handleClick(r, c) {
     }
 }
 
-function isMyPiece(val) {
-    if (turn === 'white') return val === 1 || val === 2;
-    if (turn === 'black') return val === 3;
-    return false;
-}
+function isMyPiece(val) { return turn === 'white' ? (val === 1 || val === 2) : val === 3; }
 function getNotation(r, c) { return `${String.fromCharCode(97 + c)}${9 - r}`; }
 
 function makeMove(r1, c1, r2, c2) {
-    const piece = board[r1][c1];
-    board[r2][c2] = piece;
-    board[r1][c1] = 0;
-    
+    const piece = board[r1][c1]; board[r2][c2] = piece; board[r1][c1] = 0;
     playMoveSound();
-
-    selected = null;
-    movesCount++; 
+    selected = null; movesCount++; 
     moveLog.push(`${getNotation(r1, c1)}-${getNotation(r2, c2)}`);
     checkCaptures(r2, c2);
     gameHistoryList.push(JSON.stringify(board));
     currentHistoryIndex = gameHistoryList.length - 1;
-    const nextTurn = turn === 'white' ? 'black' : 'white';
+    turn = turn === 'white' ? 'black' : 'white';
+    canUndoLocal = true; // Dopo una mossa si può fare undo locale
     
+    saveGameState();
+
     if (checkWin()) return;
-    const hash = JSON.stringify(board) + turn;
-    historyHash[hash] = (historyHash[hash] || 0) + 1;
-    if (historyHash[hash] >= 3) {
-        endGame('Pareggio per ripetizione di mosse');
-        if(mode==='online') socket.emit('game_over', { gameId });
-        return;
-    }
-    turn = nextTurn;
+    const hash = JSON.stringify(board) + turn; historyHash[hash] = (historyHash[hash] || 0) + 1;
+    if (historyHash[hash] >= 3) { endGame('Pareggio per ripetizione di mosse'); if(mode==='online') socket.emit('game_over', { gameId }); return; }
+    
     updateMoveTable(); updateNavUI(); drawBoard(); updateUI(); updateButtonsUI();
-    if (mode === 'online' && myColor !== nextTurn) socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
+    if (mode === 'online' && myColor !== turn) socket.emit('make_move', { gameId, moveData: {r1,c1,r2,c2} });
 }
 
 function updateMoveTable() {
-    const tbody = document.getElementById('move-list-body');
-    if(!tbody) return;
+    const tbody = document.getElementById('move-list-body'); if(!tbody) return;
     tbody.innerHTML = '';
     for (let i = 0; i < moveLog.length; i += 2) {
         const tr = document.createElement('tr');
         const tdNum = document.createElement('td'); tdNum.innerText = (i / 2) + 1 + ".";
         const tdBlack = document.createElement('td'); tdBlack.innerText = moveLog[i]; 
-        const tdWhite = document.createElement('td'); 
-        if (moveLog[i+1]) tdWhite.innerText = moveLog[i+1]; else tdWhite.innerText = "-";
-        tr.appendChild(tdNum); tr.appendChild(tdBlack); tr.appendChild(tdWhite);
-        tbody.appendChild(tr);
+        const tdWhite = document.createElement('td'); if (moveLog[i+1]) tdWhite.innerText = moveLog[i+1]; else tdWhite.innerText = "-";
+        tr.append(tdNum, tdBlack, tdWhite); tbody.appendChild(tr);
     }
-    const container = document.getElementById('move-history-container');
-    if(container) container.scrollTop = container.scrollHeight;
+    const container = document.getElementById('move-history-container'); if(container) container.scrollTop = container.scrollHeight;
 }
 
 function navigateHistory(dir) {
     const newIndex = currentHistoryIndex + dir;
-    if (newIndex >= 0 && newIndex < gameHistoryList.length) {
-        currentHistoryIndex = newIndex; drawBoard(); updateNavUI();
-    }
+    if (newIndex >= 0 && newIndex < gameHistoryList.length) { currentHistoryIndex = newIndex; drawBoard(); updateNavUI(); }
 }
 function updateNavUI() {
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
+    const btnPrev = document.getElementById('btn-prev'), btnNext = document.getElementById('btn-next');
     if(btnPrev) btnPrev.disabled = (currentHistoryIndex === 0);
     if(btnNext) btnNext.disabled = (currentHistoryIndex === gameHistoryList.length - 1);
 }
 
 function getMoves(r, c) {
-    let res = [];
-    const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
-    const isKing = board[r][c] === 2; 
+    let res = []; const dirs = [[0,1], [0,-1], [1,0], [-1,0]]; const isKing = board[r][c] === 2; 
     dirs.forEach(d => {
         let i = 1;
         while(true) {
@@ -311,37 +300,26 @@ function getMoves(r, c) {
             if (isThrone) { if (tVal !== 0 || isKing) break; i++; continue; }
             if(tVal !== 0) break;
             if (!isKing && ((nr===0||nr===8) && (nc===0||nc===8))) break; 
-            res.push({r: nr, c: nc});
-            if (isKing) break; 
-            i++;
+            res.push({r: nr, c: nc}); if (isKing) break; i++;
         }
-    });
-    return res;
+    }); return res;
 }
 
 function checkCaptures(r, c) {
-    const me = board[r][c];
-    const isWhite = (me === 1 || me === 2);
-    const enemies = isWhite ? [3] : [1, 2];
-    const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+    const me = board[r][c], isWhite = (me === 1 || me === 2), enemies = isWhite ? [3] : [1, 2], dirs = [[0,1], [0,-1], [1,0], [-1,0]];
     dirs.forEach(d => {
-        const nr = r + d[0], nc = c + d[1];     
-        const fr = r + d[0]*2, fc = c + d[1]*2; 
+        const nr = r + d[0], nc = c + d[1], fr = r + d[0]*2, fc = c + d[1]*2; 
         if(nr>=0 && nr<9 && enemies.includes(board[nr][nc])) {
             const victim = board[nr][nc];
             if (victim === 2) { checkKingCapture(nr, nc); return; }
             if (fr>=0 && fr<9) {
-                const anvil = board[fr][fc];
-                const isAnvilFriend = isWhite ? (anvil===1||anvil===2) : (anvil===3);
-                const isCorner = ((fr===0||fr===8) && (fc===0||fc===8)); 
-                const isThrone = (fr===4 && fc===4);
+                const anvil = board[fr][fc], isAnvilFriend = isWhite ? (anvil===1||anvil===2) : (anvil===3), isCorner = ((fr===0||fr===8) && (fc===0||fc===8)), isThrone = (fr===4 && fc===4);
                 let capture = false;
                 if (isAnvilFriend || isCorner) capture = true;
                 else if (isThrone) {
                     const behindTr = fr + d[0], behindTc = fc + d[1];
                     if (behindTr>=0 && behindTr<9 && behindTc>=0 && behindTc<9) {
-                        const bVal = board[behindTr][behindTc];
-                        const isBehindFriend = isWhite ? (bVal===1||bVal===2) : (bVal===3);
+                        const bVal = board[behindTr][behindTc], isBehindFriend = isWhite ? (bVal===1||bVal===2) : (bVal===3);
                         if (isBehindFriend) capture = true;
                     }
                 }
@@ -352,27 +330,23 @@ function checkCaptures(r, c) {
 }
 
 function checkKingCapture(r, c) {
-    let attackers = 0;
-    const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
+    let attackers = 0; const adj = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
     adj.forEach(([ar, ac]) => {
-        if (ar<0 || ar>8 || ac<0 || ac>8) attackers++;
-        else if (board[ar][ac] === 3) attackers++;
-        else if (ar===4 && ac===4) attackers++; 
+        if (ar<0 || ar>8 || ac<0 || ac>8) attackers++; else if (board[ar][ac] === 3) attackers++; else if (ar===4 && ac===4) attackers++; 
     });
     if (attackers >= 4) endGame('Vittoria Neri!');
 }
 
 function checkWin() {
-    let king = null;
-    for(let i=0; i<9; i++) for(let j=0; j<9; j++) if(board[i][j]===2) king={r:i, c:j};
+    let king = null; for(let i=0; i<9; i++) for(let j=0; j<9; j++) if(board[i][j]===2) king={r:i, c:j};
     if(!king) { endGame('Vittoria Neri!'); return true; }
     if((king.r===0||king.r===8) && (king.c===0||king.c===8)) { endGame('Vittoria Bianchi!'); return true; }
     return false;
 }
 
 function endGame(msg) {
-    gameOver = true;
-    playWinSound();
+    gameOver = true; playWinSound();
+    localStorage.removeItem('tablut_active_game'); // Rimuovi stato a fine partita
     document.getElementById('winner-msg').innerText = msg;
     document.getElementById('game-over-modal').classList.remove('hidden');
     if(timerInterval) clearInterval(timerInterval);
@@ -387,39 +361,70 @@ function updateUI() {
 function updateButtonsUI() {
     const btnsSurrender = [document.getElementById('surrender-btn'), document.getElementById('surrender-btn-mobile')];
     const btnsUndo = [document.getElementById('undo-btn'), document.getElementById('undo-btn-mobile')];
-    
-    btnsUndo.forEach(b => {
-        if(!b) return;
-        b.innerText = "Annulla Mossa"; 
-        b.disabled = (undosLeft <= 0 || gameOver);
-    });
+    const btnsRestart = [document.getElementById('restart-btn'), document.getElementById('restart-btn-mobile')];
 
-    btnsSurrender.forEach(b => {
-        if(!b) return;
-        if (movesCount === 0) {
-            b.innerText = "Annulla Partita";
-            b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); 
-        } else {
-            b.innerText = "Abbandona";
-            b.classList.remove('btn-secondary'); b.classList.add('btn-danger');
-        }
-    });
+    if (mode === 'local') {
+        // Modalità Locale: Nascondi Abbandona, Mostra Riavvia
+        btnsSurrender.forEach(b => { if(b) { b.classList.add('hidden'); b.style.display = 'none'; } });
+        btnsRestart.forEach(b => { if(b) { b.classList.remove('hidden'); b.style.display = 'block'; } });
+        
+        btnsUndo.forEach(b => {
+            if(!b) return;
+            b.innerText = "Annulla Ultima Mossa"; 
+            b.disabled = (!canUndoLocal || movesCount === 0 || gameOver);
+        });
+
+    } else {
+        // Modalità Online: Mostra Abbandona, Nascondi Riavvia
+        btnsRestart.forEach(b => { if(b) { b.classList.add('hidden'); b.style.display = 'none'; } });
+        btnsSurrender.forEach(b => {
+            if(!b) return;
+            b.classList.remove('hidden'); b.style.display = 'block';
+            if (movesCount === 0) { b.innerText = "Annulla Partita"; b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); } 
+            else { b.innerText = "Abbandona"; b.classList.remove('btn-secondary'); b.classList.add('btn-danger'); }
+        });
+
+        btnsUndo.forEach(b => {
+            if(!b) return;
+            b.innerText = `Annulla Mossa (${undosLeft})`; 
+            b.disabled = (undosLeft <= 0 || gameOver);
+        });
+    }
 }
 
 function handleSurrender() {
+    if (mode === 'local') return; // In locale non c'è abbandona
     const action = movesCount === 0 ? "annullare" : "abbandonare";
     if(confirm(`Sei sicuro di voler ${action} la partita?`)) {
+        localStorage.removeItem('tablut_active_game');
         socket.emit('surrender_game', { gameId });
     }
 }
 
 function requestUndo() {
-    if(undosLeft > 0 && turn !== myColor) { 
-        if(confirm(`Vuoi annullare la mossa?\n(Hai ancora ${undosLeft} tentativi)`)) {
-            socket.emit('request_undo', { gameId });
+    if (mode === 'local') {
+        // Undo Locale Istantaneo (solo ultima mossa)
+        if (canUndoLocal && movesCount > 0) {
+            gameHistoryList.pop(); 
+            moveLog.pop();
+            const prevState = gameHistoryList[gameHistoryList.length - 1];
+            board = JSON.parse(prevState);
+            turn = turn === 'white' ? 'black' : 'white'; 
+            movesCount--; 
+            currentHistoryIndex = gameHistoryList.length - 1;
+            canUndoLocal = false; // Non puoi fare undo 2 volte di fila
+            saveGameState();
+            drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
         }
-    } else if (undosLeft <= 0) alert("Tentativi esauriti.");
-    else alert("Non è il tuo turno per annullare.");
+    } else {
+        // Undo Online (tramite socket)
+        if(undosLeft > 0 && turn !== myColor) { 
+            if(confirm(`Vuoi richiedere di annullare la mossa?\n(Hai ancora ${undosLeft} tentativi)`)) {
+                socket.emit('request_undo', { gameId });
+            }
+        } else if (undosLeft <= 0) alert("Tentativi esauriti.");
+        else alert("Non è il tuo turno per annullare.");
+    }
 }
 
 function respondUndo(answer) {
@@ -427,25 +432,13 @@ function respondUndo(answer) {
     socket.emit('answer_undo', { gameId, answer });
 }
 
-function initOnline(name, time) {
-    document.getElementById('online-ui').classList.remove('hidden');
-    document.getElementById('online-ui-bottom').classList.remove('hidden');
-    document.getElementById('my-name').innerText = name;
-    if (time !== 'no-time') {
-        timers.white = parseInt(time)*60;
-        timers.black = parseInt(time)*60;
-    }
-    
-    socket = io('https://tablutgame.onrender.com', { 
-        transports: ['websocket', 'polling'],
-        reconnection: true 
-    });
+// --- CONNESSIONE SOCKET ONLINE ---
 
-    socket.emit('find_game', { username: name, timeControl: time });
-    
+function startSocketListeners() {
     socket.on('game_start', (data) => {
         gameId = data.gameId;
-        const isMeWhite = (data.white.trim() === name.trim());
+        const myName = document.getElementById('my-name').innerText;
+        const isMeWhite = (data.white.trim() === myName.trim());
         const oppName = isMeWhite ? data.black : data.white;
         document.getElementById('opp-name').innerText = oppName;
         const myDot = document.getElementById('my-color');
@@ -455,12 +448,20 @@ function initOnline(name, time) {
         startGame(); startPing();
     });
 
-    socket.on('assign_color', (c) => { myColor = c; if(timers.white > 0) startTimer(); });
+    socket.on('assign_color', (c) => { 
+        myColor = c; 
+        if(timers.white > 0) startTimer(); 
+        saveGameState(); // Salva lo stato inziale una volta accoppiati
+    });
+
     socket.on('opponent_move', (m) => { makeMove(m.r1, m.c1, m.r2, m.c2); });
+    
     socket.on('game_over_forced', ({ winner, reason }) => {
+        localStorage.removeItem('tablut_active_game');
         if (reason === 'cancelled') document.getElementById('game-cancelled-modal').classList.remove('hidden');
         else endGame(winner === 'white' ? 'Vittoria Bianchi (Resa)' : 'Vittoria Neri (Resa)');
     });
+    
     socket.on('undo_requested', () => { document.getElementById('undo-request-modal').classList.remove('hidden'); });
     socket.on('undo_accepted', (data) => {
         gameHistoryList.pop(); moveLog.pop();
@@ -468,17 +469,66 @@ function initOnline(name, time) {
         board = JSON.parse(prevState);
         turn = data.newTurn; movesCount--; currentHistoryIndex = gameHistoryList.length - 1;
         if (myColor === 'white') undosLeft = data.whiteUndos; else undosLeft = data.blackUndos;
+        saveGameState();
         drawBoard(); updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI();
     });
-    socket.on('undo_refused', () => alert("Rifiutato."));
-    socket.on('opponent_connection_lost', () => document.getElementById('opponent-warning').classList.remove('hidden'));
-    socket.on('game_over_timeout', ({ winner }) => {
-        document.getElementById('opponent-warning').classList.add('hidden');
-        endGame(`Vittoria ${winner} (Timeout)`);
+    
+    socket.on('undo_refused', () => alert("Rifiutato dall'avversario."));
+    
+    socket.on('opponent_connection_lost', () => {
+        document.getElementById('opponent-warning').classList.remove('hidden');
+        document.getElementById('opponent-warning').innerText = "⏳ L'avversario si è disconnesso. In attesa di riconnessione (Max 2 min)...";
     });
-    socket.on('time_expired', (d) => endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)"));
+    socket.on('opponent_reconnected', () => {
+        document.getElementById('opponent-warning').classList.add('hidden');
+    });
+
+    socket.on('game_over_timeout', ({ winner }) => {
+        localStorage.removeItem('tablut_active_game');
+        document.getElementById('opponent-warning').classList.add('hidden');
+        endGame(`Vittoria ${winner} (Timeout disconnessione/inattività)`);
+    });
+
+    socket.on('time_expired', (d) => {
+        localStorage.removeItem('tablut_active_game');
+        endGame(d.loser === 'white' ? "Vittoria Neri (Tempo)" : "Vittoria Bianchi (Tempo)");
+    });
+    
     socket.on('pong', () => { const ms = Date.now() - lastPing; updateSignal(ms); document.getElementById('connection-warning').classList.add('hidden'); });
     socket.on('connect_error', () => document.getElementById('connection-warning').classList.remove('hidden'));
+}
+
+function reconnectOnline() {
+    document.getElementById('online-ui').classList.remove('hidden');
+    document.getElementById('online-ui-bottom').classList.remove('hidden');
+    
+    socket = io('https://tablutgame.onrender.com', { 
+        transports: ['websocket', 'polling'], reconnection: true 
+    });
+
+    startSocketListeners();
+
+    socket.on('connect', () => {
+        socket.emit('reconnect_game', { gameId, playerId });
+    });
+
+    updateUI(); updateButtonsUI(); updateMoveTable(); updateNavUI(); drawBoard();
+    if(timers.white > 0) startTimer();
+    startPing();
+}
+
+function initOnline(name, time) {
+    document.getElementById('online-ui').classList.remove('hidden');
+    document.getElementById('online-ui-bottom').classList.remove('hidden');
+    document.getElementById('my-name').innerText = name;
+    if (time !== 'no-time') { timers.white = parseInt(time)*60; timers.black = parseInt(time)*60; }
+    
+    socket = io('https://tablutgame.onrender.com', { 
+        transports: ['websocket', 'polling'], reconnection: true 
+    });
+
+    startSocketListeners();
+    socket.emit('find_game', { username: name, timeControl: time, playerId: playerId });
 }
 
 let lastPing = 0;
@@ -493,6 +543,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if(gameOver) return;
         if(turn === 'white') timers.white--; else timers.black--;
+        saveGameState(); // Salva lo scorrere del tempo
         const fmt = (t) => { if(t<0) return "00:00"; let m=Math.floor(t/60), s=t%60; return `${m}:${s<10?'0'+s:s}`; };
         document.getElementById('my-timer').innerText = fmt(myColor==='white'?timers.white:timers.black);
         document.getElementById('opp-timer').innerText = fmt(myColor==='white'?timers.black:timers.white);
